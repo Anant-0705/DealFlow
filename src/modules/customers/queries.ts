@@ -11,3 +11,13 @@ export function listCustomers() {
     orderBy: { name: "asc" },
   });
 }
+
+export function getCustomerByCode(code: string) {
+  return prisma.customer.findUnique({
+    where: { code },
+    include: {
+      users: { select: { id: true, name: true, email: true }, orderBy: { name: "asc" } },
+      _count: { select: { quotes: true } },
+    },
+  });
+}

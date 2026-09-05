@@ -22,7 +22,7 @@ export function getPortalQuote(customerId: number, code: string) {
       customerStatus: true,
       approvalStatus: true,
       lastActivityAt: true,
-      customer: { select: { name: true } },
+      customer: { select: { name: true, email: true, phone: true, gstin: true, billingAddress: true } },
       currentRevision: { select: {
         id: true,
         version: true,
@@ -71,5 +71,5 @@ export function listPortalMessages(customerId: number) {
 }
 
 export function getPortalProfile(customerId: number) {
-  return prisma.customer.findUnique({ where: { id: customerId }, select: { name: true, code: true, tier: true, email: true } });
+  return prisma.customer.findUnique({ where: { id: customerId }, select: { name: true, code: true, tier: true, email: true, phone: true, gstin: true, billingAddress: true } });
 }

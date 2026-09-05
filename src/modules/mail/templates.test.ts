@@ -16,7 +16,10 @@ describe("mail templates", () => {
     expect(email.subject).toContain("Acme <Corp>");
     expect(email.html).toContain("Acme &lt;Corp&gt;");
     expect(email.html).toContain("http://localhost:3000/accept-invite?token=abc");
+    expect(email.html).toContain("Activate portal access");
+    expect(email.html).toContain("Confirm the version");
     expect(email.text).toContain("choose your name and password");
+    expect(email.text).toContain("Pay invoices from the portal");
     expect(email.html.toLowerCase()).not.toContain("temporary password");
     expect(email.text.toLowerCase()).not.toContain("temporary password");
   });
@@ -26,6 +29,8 @@ describe("mail templates", () => {
     expect(email.subject).toBe("Reset your DealFlow password");
     expect(email.text).toContain("http://localhost:3000/reset-password?token=xyz");
     expect(email.html).toContain("Choose a new password");
+    expect(email.html).toContain("expires in 1 hour");
+    expect(email.text).toContain("current password will stay the same");
   });
 
   it("explains invite mail outcomes", () => {

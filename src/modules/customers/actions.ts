@@ -102,9 +102,22 @@ export async function inviteCustomer(formData: FormData) {
   redirect(invitePath({ token, customerName: customer.name, email: parsed.data.email, mail: mailStatus(mail) }));
 }
 
+function acceptInviteError(token: string, message: string) {
+  return `/accept-invite?token=${encodeURIComponent(token)}&error=${encodeURIComponent(message)}`;
+}
+
 export async function acceptCustomerInvite(formData: FormData) {
+  const token = String(formData.get("token") ?? "");
   const parsed = acceptSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) redirect(`/accept-invite?token=${encodeURIComponent(String(formData.get("token") ?? ""))}&error=Enter+your+name+and+a+password+of+at+least+8+characters`);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const message = issue?.path[0] === "token"
+      ? "This invitation is invalid, expired, or has already been used."
+      : issue?.path[0] === "password"
+        ? "Enter a password of at least 8 characters."
+        : issue?.message ?? "Enter a valid name.";
+    redirect(acceptInviteError(token, message));
+  }
   const passwordHash = await hash(parsed.data.password, 12);
   const result = await prisma.$transaction(async (tx) => {
     const invite = await tx.customerInvite.findFirst({ where: { tokenHash: hashToken(parsed.data.token), acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } }, select: { id: true, email: true, customerId: true } });
@@ -116,7 +129,7 @@ export async function acceptCustomerInvite(formData: FormData) {
     const user = await tx.user.create({ data: { email: invite.email, passwordHash, name: parsed.data.name, role: "CUSTOMER", customerId: invite.customerId }, select: { id: true, role: true, name: true, customerId: true } });
     return { user } as const;
   });
-  if ("error" in result && result.error) redirect(`/accept-invite?token=${encodeURIComponent(parsed.data.token)}&error=${encodeURIComponent(result.error)}`);
+  if ("error" in result && result.error) redirect(acceptInviteError(parsed.data.token, result.error));
   await setSession({ userId: result.user.id, role: result.user.role, name: result.user.name, customerId: result.user.customerId });
   redirect("/portal");
 }

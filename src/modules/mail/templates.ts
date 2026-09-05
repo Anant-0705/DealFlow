@@ -1,32 +1,61 @@
-import { escapeHtml } from "./html";
+import { escapeHtml, transactionalEmail } from "./html";
 
 export function customerInviteEmail(args: { customerName: string; acceptUrl: string; expiresInDays: number }) {
   const name = escapeHtml(args.customerName);
-  const url = escapeHtml(args.acceptUrl);
   return {
     subject: `Activate your ${args.customerName} portal on DealFlow`,
     text: [
       `You have been invited to the DealFlow customer portal for ${args.customerName}.`,
-      `Open this link to choose your name and password: ${args.acceptUrl}`,
+      "DealFlow is where your company reviews quotations, confirms the agreed version, and pays invoices.",
+      "What happens next:",
+      "1. Activate this invitation and choose your name and password.",
+      `2. Open quotations sent to ${args.customerName}.`,
+      "3. Confirm the version you agree to.",
+      "4. Pay invoices from the portal when they are issued.",
+      `Activate your access: ${args.acceptUrl}`,
       `This invitation expires in ${args.expiresInDays} days and can be used once.`,
-      "If you were not expecting this, you can ignore the email.",
+      "DealFlow does not put passwords in email. If you were not expecting this, you can ignore it.",
     ].join("\n\n"),
-    html: `<p>You have been invited to the DealFlow customer portal for <strong>${name}</strong>.</p><p><a href="${url}">Activate your access</a> to choose your name and password.</p><p>This invitation expires in ${args.expiresInDays} days and can be used once.</p><p>If you were not expecting this, you can ignore the email.</p>`,
+    html: transactionalEmail({
+      preheader: `Activate portal access for ${args.customerName}, then review quotations, confirm, and pay invoices.`,
+      eyebrow: "Customer portal invitation",
+      title: "You're invited to DealFlow",
+      intro: `You have been invited to the customer portal for <strong>${name}</strong>. This is where quotations are reviewed, confirmed, and billed — not a login with a generated password.`,
+      steps: [
+        "Activate this invitation and choose your name and password.",
+        `Open quotations sent to ${args.customerName}.`,
+        "Confirm the version your company agrees to.",
+        "Pay invoices from the portal when they are issued.",
+      ],
+      ctaLabel: "Activate portal access",
+      ctaUrl: args.acceptUrl,
+      expiry: `This invitation expires in ${args.expiresInDays} days and can be used once.`,
+      note: "If you were not expecting this invitation, you can ignore the email.",
+    }),
   };
 }
 
 export function passwordResetEmail(args: { name: string; resetUrl: string; expiresInHours: number }) {
-  const name = escapeHtml(args.name);
-  const url = escapeHtml(args.resetUrl);
+  const hours = args.expiresInHours === 1 ? "1 hour" : `${args.expiresInHours} hours`;
   return {
     subject: "Reset your DealFlow password",
     text: [
       `Hi ${args.name},`,
-      `Use this link to choose a new DealFlow password: ${args.resetUrl}`,
-      `This link expires in ${args.expiresInHours} hour and can be used once.`,
-      "If you did not request a reset, you can ignore this email.",
+      "We received a request to reset the password for your DealFlow account.",
+      `Choose a new password: ${args.resetUrl}`,
+      `This link expires in ${hours} and can be used once.`,
+      "If you did not request a reset, you can ignore this email. Your current password will stay the same.",
     ].join("\n\n"),
-    html: `<p>Hi ${name},</p><p><a href="${url}">Choose a new password</a> for your DealFlow account.</p><p>This link expires in ${args.expiresInHours} hour and can be used once.</p><p>If you did not request a reset, you can ignore this email.</p>`,
+    html: transactionalEmail({
+      preheader: `Choose a new DealFlow password. This link expires in ${hours}.`,
+      eyebrow: "Account security",
+      title: "Reset your DealFlow password",
+      intro: `Hi ${escapeHtml(args.name)}, we received a request to reset the password for your DealFlow workspace. Use the button below to choose a new one.`,
+      ctaLabel: "Choose a new password",
+      ctaUrl: args.resetUrl,
+      expiry: `This link expires in ${hours} and can be used once.`,
+      note: "If you did not request a reset, you can ignore this email. Your current password will stay the same.",
+    }),
   };
 }
 

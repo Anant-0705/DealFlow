@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { hashToken } from "@/lib/tokens";
 
 export function listCustomers() {
   return prisma.customer.findMany({
@@ -9,6 +10,14 @@ export function listCustomers() {
       _count: { select: { quotes: true } },
     },
     orderBy: { name: "asc" },
+  });
+}
+
+export async function getOpenInvite(token: string) {
+  if (token.trim().length < 32) return null;
+  return prisma.customerInvite.findFirst({
+    where: { tokenHash: hashToken(token), acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } },
+    select: { email: true, expiresAt: true, customer: { select: { name: true } } },
   });
 }
 

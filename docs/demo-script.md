@@ -12,7 +12,7 @@ Reset Demo Data from Settings → System. Prepare four sessions: Ravi, Manager, 
 4. Open the quotation and click Send to customer; the button changes through “Sending…” to “Sent to customer”.
 5. Acme customer: My Quotations → open the quote → Confirm quotation.
 6. Operations: Fulfillment → order → Accept Suggested Split.
-7. Finance: Invoices → open invoice → Record payment. Show the Paid status and quotation Timeline.
+7. Acme customer: Invoices → open the unpaid invoice → Pay with Cashfree. Complete a sandbox payment and show the Paid status and quotation Timeline. Finance can still record bank transfers manually.
 
 ## Flow B — governed negotiation and execution (1:40–4:10)
 
@@ -33,7 +33,7 @@ Reset Demo Data from Settings → System. Prepare four sessions: Ravi, Manager, 
 
 ## Architecture and honesty (4:45–5:00)
 
-Open `docs/architecture.png`: deterministic engines, one Next.js process, PostgreSQL, and offline operation. State the known boundaries: no payment gateway, no outbound notifications, INR/single-company, and browser-rendered PDF.
+Open `docs/architecture.png`: deterministic engines, one Next.js process, PostgreSQL, Cashfree-hosted checkout, and Resend-backed account mail. State the known boundaries: Cashfree is sandbox-only by default, quote-send and operational notifications remain in-app, and currency/company scope is INR/single-company.
 
 ## Failure protocol
 

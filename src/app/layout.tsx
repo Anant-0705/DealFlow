@@ -7,7 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: "AccordFlow | Deal governance",
+  title: "DealFlow | Deal governance",
   description: "Explainable sales operations from quotation to cash.",
   icons: { icon: "/landing/dealflow-mark.png" },
 };

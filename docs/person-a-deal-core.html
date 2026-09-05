@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Person A — Deal core · DealFlow</title>
+  <style>
+    :root {
+      --ink: #1c1914;
+      --muted: #5c564c;
+      --line: #d8d0c4;
+      --paper: #f4efe6;
+      --card: #fffaf3;
+      --accent: #8f3d1b;
+      --accent-soft: #f3e2d6;
+      --ok: #1f5c45;
+      --code-bg: #1f1c18;
+      --code: #f3eadc;
+      --path: #2d4a6f;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font: 16px/1.6 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    a { color: var(--accent); }
+    .wrap {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 100vh;
+    }
+    nav.toc {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 28px 18px 40px;
+      border-right: 1px solid var(--line);
+      background: #efe8dc;
+    }
+    nav.toc .brand {
+      display: block;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    nav.toc h1 {
+      font-size: 20px;
+      margin: 0 0 18px;
+      line-height: 1.25;
+    }
+    nav.toc a {
+      display: block;
+      text-decoration: none;
+      color: var(--ink);
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    nav.toc a:hover,
+    nav.toc a.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    main { padding: 36px 48px 80px; max-width: 860px; }
+    .kicker {
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    h2 {
+      font-size: 28px;
+      margin: 8px 0 12px;
+      line-height: 1.2;
+    }
+    h3 { font-size: 18px; margin: 22px 0 8px; }
+    p.lead { font-size: 18px; color: var(--muted); }
+    article.part {
+      margin: 0 0 56px;
+      padding: 0 0 40px;
+      border-bottom: 1px solid var(--line);
+    }
+    .path, code.inline {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      color: var(--path);
+      background: #e8eef6;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .dir {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    pre {
+      background: var(--code-bg);
+      color: var(--code);
+      padding: 16px 18px;
+      border-radius: 10px;
+      overflow-x: auto;
+      font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 15px;
+      margin: 12px 0 18px;
+    }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .callout {
+      background: var(--accent-soft);
+      border-left: 4px solid var(--accent);
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+    }
+    .ok { color: var(--ok); }
+    ol.theory li { margin: 8px 0; }
+    .next {
+      display: inline-block;
+      margin-top: 8px;
+      text-decoration: none;
+      background: var(--ink);
+      color: var(--paper);
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 14px;
+    }
+    @media (max-width: 900px) {
+      .wrap { grid-template-columns: 1fr; }
+      nav.toc { position: relative; height: auto; }
+      main { padding: 24px 18px 64px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="toc" aria-label="Parts">
+      <span class="brand">DealFlow · Person A</span>
+      <h1>Deal core</h1>
+      <a href="#p0">0. What you own</a>
+      <a href="#p1">1. How the code is layered</a>
+      <a href="#p2">2. Auth, roles, route guards</a>
+      <a href="#p3">3. Money, codes, audit</a>
+      <a href="#p4">4. Settings and catalog</a>
+      <a href="#p5">5. Quote, revision, four statuses</a>
+      <a href="#p6">6. Pricing engine (theory)</a>
+      <a href="#p7">7. Approval routing</a>
+      <a href="#p8">8. Quote lifecycle actions</a>
+      <a href="#p9">9. Approval inbox</a>
+      <a href="#p10">10. Pipeline Kanban</a>
+      <a href="#p11">11. Upsell</a>
+      <a href="#p12">12. Quote builder UI</a>
+      <a href="#p13">13. Timeline, diff, impact, send</a>
+      <a href="#p14">14. Worked example</a>
+      <a href="#p15">15. File index</a>
+    </nav>
+    <main>
+      <article class="part" id="p0">
+        <div class="kicker">Part 0</div>
+        <h2>What Person A owns</h2>
+        <p class="lead">Person A owns the commercial loop that happens <em>inside the company</em>: a rep builds a quote, the engine prices it and explains the risk, a manager and maybe finance approve it, then the quote is sent. Person B takes over once the customer is in the portal.</p>
+        <p>If you can walk a judge from login → product cost in Settings → Laptop 12% + Setup 18% → “8 pts over” → Manager then Finance → Kanban column “Pending Approval” → approve with a reason → Send, you own this slice.</p>
+        <p>Person A does <strong>not</strong> own warehouse splits, proration, invoices, or portal scoping. Those live in Person B. You only need to know that Send sets <code class="inline">customerStatus = SENT</code>, and that confirm/fulfillment/payment are later columns.</p>
+        <a class="next" href="#p1">Next: layering →</a>
+      </article>
+
+      <article class="part" id="p1">
+        <div class="kicker">Part 1</div>
+        <h2>How the code is layered</h2>
+        <p>The repo is one Next.js app. The important rule is: <strong>screens do not compute money</strong>. A page loads data, a component renders it, a module decides the numbers. If a file under <code class="inline">src/app</code> starts adding discounts, it is in the wrong place.</p>
+        <div class="dir">src/
+  app/(auth)/login, signup          ← screens
+  app/(internal)/app/...            ← internal screens
+  components/quotes, approvals,...  ← React UI
+  modules/pricing, quotes, ...      ← business logic
+  lib/auth, money, audit, roles     ← shared primitives
+prisma/schema.prisma                ← data model</div>
+        <h3>Why this split exists</h3>
+        <p>Judges will change a discount on a quote and ask “why did it go to Finance?” The answer has to come from a pure function that also has unit tests — not from a React <code class="inline">useState</code> total. The same engine runs:</p>
+        <ol class="theory">
+          <li>Live in the quote builder (client import of a pure TS function).</li>
+          <li>Authoritatively on Save / Submit (server re-reads catalog, ignores client prices).</li>
+          <li>Again on a portal counter-offer (Person B reuses your engine; they do not rewrite pricing).</li>
+        </ol>
+        <div class="callout">Convention: <code class="inline">modules/*.ts</code> never imports React. <code class="inline">app/</code> never calculates paise. Mutations are Next.js server actions (<code class="inline">"use server"</code>), not REST.</div>
+        <a class="next" href="#p2">Next: auth →</a>
+      </article>
+
+      <article class="part" id="p2">
+        <div class="kicker">Part 2</div>
+        <h2>Auth, roles, and route guards</h2>
+        <p>There is no NextAuth in the running code. Sessions are a signed HMAC cookie. The cookie is httpOnly, so the browser cannot edit the role. After login, the role is also re-read from Postgres on every request, so a stale cookie cannot keep a fired user’s privileges.</p>
+
+        <h3>Directories</h3>
+        <table>
+          <tr><th>Job</th><th>Path</th></tr>
+          <tr><td>Login / signup actions</td><td><span class="path">src/modules/identity/actions.ts</span></td></tr>
+          <tr><td>Rate limit brute force</td><td><span class="path">src/modules/identity/rate-limit.ts</span></td></tr>
+          <tr><td>Cookie + requireRole</td><td><span class="path">src/lib/auth.ts</span></td></tr>
+          <tr><td>Sign / verify token</td><td><span class="path">src/lib/session-token.ts</span></td></tr>
+          <tr><td>Role sets and landing path</td><td><span class="path">src/lib/roles.ts</span></td></tr>
+          <tr><td>URL protection</td><td><span class="path">src/proxy.ts</span></td></tr>
+          <tr><td>Login / signup pages</td><td><span class="path">src/app/(auth)/login/page.tsx</span>, <span class="path">signup/page.tsx</span></td></tr>
+        </table>
+
+        <h3>Theory: five roles</h3>
+        <p>A user is exactly one of <code class="inline">REP</code>, <code class="inline">MANAGER</code>, <code class="inline">FINANCE</code>, <code class="inline">ADMIN</code>, <code class="inline">CUSTOMER</code>. Customers always have a <code class="inline">customerId</code> (the company they belong to). Internal users must not have one. That invariant is checked when the token is built and when the session is loaded.</p>
+        <ul>
+          <li><strong>REP</strong> builds and owns quotes. Cannot open Settings or Approvals.</li>
+          <li><strong>MANAGER</strong> configures policy, sees Manager steps in the inbox.</li>
+          <li><strong>FINANCE</strong> sees Finance steps only after the Manager step is approved.</li>
+          <li><strong>ADMIN</strong> can do settings and can override ownership.</li>
+          <li><strong>CUSTOMER</strong> is bounced off <code class="inline">/app</code> onto <code class="inline">/portal</code>.</li>
+        </ul>
+        <p>Signup always creates a <code class="inline">REP</code>. Demo passwords are <code class="inline">demo1234</code>.</p>
+
+        <h3>Snippet — who may do what</h3>
+<pre>export const INTERNAL_ROLES = ["REP", "MANAGER", "FINANCE", "ADMIN"];
+export const APPROVER_ROLES = ["MANAGER", "FINANCE", "ADMIN"];
+export const SETTINGS_ROLES = ["ADMIN", "MANAGER"];
+export const QUOTE_EDITOR_ROLES = ["REP", "ADMIN"];
+
+export function landingPath(role: UserRole) {
+  return role === "CUSTOMER" ? "/portal" : "/app/dashboard";
+}</pre>
+
+        <h3>Snippet — two layers of guard</h3>
+        <p><code class="inline">proxy.ts</code> stops a customer hitting <code class="inline">/app</code> by URL. That is not enough. Every mutation also calls <code class="inline">requireRole</code>, because a logged-in rep could still POST an approve action.</p>
+<pre>export async function requireRole(roles) {
+  const session = await getSession();
+  if (!session) unauthorized();
+  if (!hasRole(session.role, roles)) forbidden();
+  return session;
+}</pre>
+        <p>Pages use <code class="inline">requireInternal</code> or <code class="inline">requirePageRole</code> and <em>redirect</em>. Actions use <code class="inline">requireRole</code> and return 401/403. Settings layout additionally requires ADMIN or MANAGER.</p>
+        <a class="next" href="#p3">Next: primitives →</a>
+      </article>
+
+      <article class="part" id="p3">
+        <div class="kicker">Part 3</div>
+        <h2>Money, human codes, and the audit log</h2>
+        <p>Three primitives show up in almost every Person A action. Learn them once.</p>
+
+        <h3>Money is integers</h3>
+        <p>₹1.00 is stored as <code class="inline">100</code> paise. 12% is stored as <code class="inline">1200</code> basis points (bps). The UI shows rupees and percents; the database never stores floats for money. Rounding is half-up, done with integer math, usually once per line.</p>
+        <p>Directory: <span class="path">src/lib/money.ts</span></p>
+<pre>export function formatMoney(paise: number) {
+  return inr.format(paise / 100);          // 8500000 → ₹85,000
+}
+export function parsePercent(value) {
+  return Math.round(Number(value) * 100);  // "12" → 1200 bps
+}</pre>
+
+        <h3>Human codes</h3>
+        <p>Primary keys are integers. Humans see <code class="inline">Q-1042</code>. Quote codes are minted in <span class="path">src/lib/codes.ts</span>. Seeded history starts around 1000 so live demo quotes do not collide.</p>
+<pre>export async function nextQuoteCode(db) {
+  const last = await db.quote.findFirst({ orderBy: { id: "desc" }, select: { code: true } });
+  const numeric = last ? Number(last.code.replace(/\D/g, "")) : 1041;
+  return `Q-${Math.max(1042, numeric + 1)}`;
+}</pre>
+
+        <h3>Audit is part of the transaction</h3>
+        <p>Directory: <span class="path">src/lib/audit.ts</span>. <code class="inline">logEvent</code> must run on the same Prisma transaction as the mutation. If save fails, there must be no log line. Person B’s Deal Timeline is simply “all AuditEvents for this quoteId, ordered by time.” If you forget <code class="inline">quoteId</code>, the timeline has a hole.</p>
+<pre>export function logEvent(db, event) {
+  return db.auditEvent.create({
+    data: { ...event, quoteId: event.quoteId ?? null, meta: event.meta ?? {} },
+  });
+}</pre>
+        <p>Person A is responsible for logging at least: quote created, line add/update/remove, order discount changed, submitted, auto-approved, approved, returned, rejected, revised, upsell added/dismissed, settings changed, and sent.</p>
+        <a class="next" href="#p4">Next: settings →</a>
+      </article>
+
+      <article class="part" id="p4">
+        <div class="kicker">Part 4</div>
+        <h2>Settings and catalog — the numbers the engine reads</h2>
+        <p>The pricing engine is pure: it does not query the database. Something else has to load policy, category ceilings, list prices, costs, and the Gold price list, then feed them in. That something is Settings plus the quote save path.</p>
+        <p>If Settings is wrong, every quote is wrong. Cost is required because margin is <em>net revenue minus cost</em>. A product without cost cannot show a truthful margin bar.</p>
+
+        <h3>Directories</h3>
+        <table>
+          <tr><th>Domain</th><th>Module</th><th>Screen</th></tr>
+          <tr><td>Products + variants</td><td><span class="path">src/modules/catalog/</span></td><td><span class="path">src/app/(internal)/app/settings/products/</span></td></tr>
+          <tr><td>Price lists (per tier)</td><td><span class="path">src/modules/policy/actions.ts</span> <code class="inline">savePriceList</code></td><td><span class="path">.../settings/pricing/page.tsx</span></td></tr>
+          <tr><td>Discount + finance thresholds</td><td><span class="path">src/modules/policy/</span></td><td><span class="path">.../settings/policy/page.tsx</span></td></tr>
+          <tr><td>Warehouses + on-hand (CRUD only)</td><td><span class="path">src/modules/inventory/actions.ts</span> <code class="inline">saveWarehouse</code>, <code class="inline">saveStock</code></td><td><span class="path">.../settings/warehouses/</span></td></tr>
+          <tr><td>Subscription plans</td><td><span class="path">src/modules/plans/</span></td><td><span class="path">.../settings/plans/</span></td></tr>
+          <tr><td>Pairings for upsell</td><td><span class="path">src/modules/upsell/queries.ts</span></td><td><span class="path">.../settings/upsell/</span></td></tr>
+          <tr><td>Tabs layout</td><td></td><td><span class="path">src/app/(internal)/app/settings/layout.tsx</span></td></tr>
+        </table>
+        <p>Warehouse <em>allocation</em> (the split engine) is Person B. Person A only needs the CRUD so stock exists for later.</p>
+
+        <h3>Theory: two different kinds of “cheaper for the customer”</h3>
+        <ol class="theory">
+          <li><strong>Price list</strong> (Gold 5% off list) sets the <em>unit price</em>. It is the customer’s catalog price. It is <strong>not</strong> a discretionary discount and does not consume the 15% Gold ceiling.</li>
+          <li><strong>Line / order discount</strong> is what the rep types. That is governed. Excess over <code class="inline">min(tier ceiling, category ceiling)</code> is what creates approval.</li>
+        </ol>
+        <p>Seeded policy (also in <span class="path">docs/policies.md</span>): Bronze 5% / Silver 10% / Gold 15%. Hardware category 15%, Services 10%. Finance if max line excess ≥ 8 pts, or blended excess ≥ 3%, or excess value ≥ ₹5,000.</p>
+
+        <h3>Snippet — saving policy converts % → bps</h3>
+<pre>export async function savePolicy(formData: FormData) {
+  const session = await requireRole(["ADMIN", "MANAGER"]);
+  const value = policySchema.parse(formObject(formData));
+  const data = {
+    tierCeilingGoldBps: Math.round(value.tierCeilingGold * 100),
+    financeLineExcessBps: Math.round(value.financeLineExcess * 100),
+    financeExcessValuePaise: Math.round(value.financeExcessValueRupees * 100),
+    // ...
+  };
+  await prisma.$transaction(async (tx) => {
+    await tx.discountPolicy.upsert({ where: { id: 1 }, create: { id: 1, ...data }, update: data });
+    await logEvent(tx, { entity: "POLICY", entityId: 1, action: "SETTINGS_CHANGED", ... });
+  });
+}</pre>
+        <p>There is a single <code class="inline">DiscountPolicy</code> row with <code class="inline">id = 1</code>. Categories each store their own <code class="inline">discountCeilingBps</code>.</p>
+        <a class="next" href="#p5">Next: quote model →</a>
+      </article>
+
+      <article class="part" id="p5">
+        <div class="kicker">Part 5</div>
+        <h2>Quote, revision snapshot, four statuses</h2>
+        <p>Schema: <span class="path">prisma/schema.prisma</span>. This is the most important data idea in the product.</p>
+
+        <h3>Quote vs revision</h3>
+        <p>A <strong>Quote</strong> is the deal envelope: customer, owner, current revision pointer, and four status columns. A <strong>QuoteRevision</strong> is a frozen photograph of lines, totals, margin, required approval level, and the <code class="inline">reasons[]</code> the engine produced at that moment.</p>
+        <p>Drafts overwrite the current revision in place (v1 stays v1) until submit. Submit freezes it. “Revise” clones it to v2 and marks v1’s approval steps <code class="inline">STALE</code>. Old revisions are never deleted. That is how a judge can ask “what did v1 look like when the manager approved it?”</p>
+        <p>Prices on a line are snapshots: <code class="inline">unitPricePaise</code>, <code class="inline">unitCostPaise</code>, tax, discounts, net. Changing the catalog tomorrow must not rewrite Q-1042 v1.</p>
+
+        <h3>Four independent statuses</h3>
+        <p>Never invent a single “stage” enum. The four columns overlap in time:</p>
+        <table>
+          <tr><th>Column</th><th>Person A writes</th><th>Values you care about</th></tr>
+          <tr><td><code class="inline">approvalStatus</code></td><td>Yes — submit / approve / return / reject / revise</td><td>NONE, PENDING, APPROVED, REJECTED, STALE</td></tr>
+          <tr><td><code class="inline">customerStatus</code></td><td>Send only (SENT). Draft is the default.</td><td>DRAFT → SENT → (Person B: NEGOTIATING, CONFIRMED)</td></tr>
+          <tr><td><code class="inline">fulfillmentStatus</code></td><td>No</td><td>Person B</td></tr>
+          <tr><td><code class="inline">paymentStatus</code></td><td>No</td><td>Person B</td></tr>
+        </table>
+        <div class="callout">If you find yourself setting fulfillment inside an approve action, stop. Each event writes only its own column.</div>
+        <p>Kanban “stage” is derived later from these four. That is Part 10.</p>
+        <a class="next" href="#p6">Next: the engine →</a>
+      </article>
+
+      <article class="part" id="p6">
+        <div class="kicker">Part 6 · the heart of Person A</div>
+        <h2>Pricing engine — detailed theory</h2>
+        <p>Directory:</p>
+        <div class="dir">src/modules/pricing/
+  engine.ts       ← evaluateRevision()  (pure)
+  types.ts        ← input / output shapes
+  engine.test.ts  ← PDF example + edges</div>
+        <p><code class="inline">evaluateRevision</code> takes a customer tier, the policy row, an order-level discount, and lines. It returns priced lines, totals, margin, three risk signals, a required approval level, and human-readable <code class="inline">reasons[]</code>. No Prisma. No React. The UI renders <code class="inline">reasons</code> verbatim — that is the product’s explainability, not a separate feature.</p>
+
+        <h3>Per-line calculation, in order</h3>
+        <ol class="theory">
+          <li><strong>Unit price is already price-list adjusted</strong> when it arrives. Gold’s 5% off list happened before the engine. Do not treat it as discount here.</li>
+          <li><strong>Base</strong> = qty × unit price (paise).</li>
+          <li><strong>Compounded effective discount.</strong> Line 10% and order 10% is not 20%. Remaining fraction = (1 − line) × (1 − order). Effective = 1 − remaining. 10% + 10% → 19% → 1900 bps. The code does this in integer bps with half-up rounding.</li>
+          <li><strong>Allowed</strong> = min(customer tier ceiling, this line’s category ceiling). Gold Hardware: min(15%, 15%) = 15%. Gold Services: min(15%, 10%) = 10%. Bronze Hardware: min(5%, 15%) = 5%. The stricter ceiling always wins.</li>
+          <li><strong>Excess bps</strong> = max(0, effective − allowed). A line inside the ceiling has excess 0 even if it has a discount.</li>
+          <li><strong>Excess value</strong> = base × excess / 10000. This is “how many rupees of unauthorized discount sit on this line.”</li>
+          <li><strong>Net</strong> = base × (1 − effective). <strong>Tax</strong> = net × tax bps. <strong>Cost</strong> = qty × unit cost.</li>
+        </ol>
+
+        <h3>Quote-level signals (why Finance exists)</h3>
+        <p>A single huge service breach is easy to see. The brief also cares about many small breaches that hide inside a big hardware quote, and about rupee magnitude.</p>
+        <ul>
+          <li><code class="inline">maxLineExcessBps</code> — the worst line. If this is ≥ 800 (8 pts), Finance is required.</li>
+          <li><code class="inline">excessValuePaise</code> — sum of line excess values. If this is ≥ ₹5,000, Finance is required even if no single line is 8 pts over.</li>
+          <li><code class="inline">blendedExcessBps</code> — excessValue / total base. Catches lots of 2–3 pt nicks. Threshold 3% (300 bps).</li>
+        </ul>
+        <p><strong>You must not average discounts across lines.</strong> Averaging is the loophole: 18% on a cheap service + 0% on laptops looks “fine” as an average and is not fine as governance.</p>
+
+        <h3>Margin</h3>
+        <p>Margin is on net revenue excluding tax: <code class="inline">margin = netRevenue − cost</code>. Margin % = margin / net revenue. Tax collected is not profit.</p>
+
+        <h3>Snippet — the actual arithmetic</h3>
+<pre>const remainingBps = roundDiv(
+  (10_000 - line.lineDiscountBps) * (10_000 - input.orderDiscountBps),
+  10_000,
+);
+const effectiveDiscountBps = 10_000 - remainingBps;
+const allowedDiscountBps = Math.min(tierCeilingBps, line.categoryCeilingBps);
+const excessBps = Math.max(0, effectiveDiscountBps - allowedDiscountBps);
+const excessValuePaise = roundDiv(basePaise * excessBps, 10_000);
+const netPaise = roundDiv(basePaise * (10_000 - effectiveDiscountBps), 10_000);</pre>
+        <p><code class="inline">roundDiv</code> is integer half-up: <code class="inline">floor((n + d/2) / d)</code>.</p>
+
+        <h3>Reasons are the UI</h3>
+        <p>For a breaching line the engine emits a sentence like: <em>“Setup Service is 8 pts over the 10% Services ceiling → Manager approval required.”</em> If Finance is triggered it adds <em>“Max line excess 8 pts ≥ 8 pts → Finance approval required.”</em> A clean quote says <em>“All lines within tier and category ceilings → auto-approved.”</em> The last line is always a summary: Requires: No approval / Sales Manager / Sales Manager → Finance.</p>
+        <p>Tests live in <span class="path">src/modules/pricing/engine.test.ts</span>. The PDF example is the first test: Gold, Laptop 12%, Setup 18% → <code class="inline">requiredLevel === "FINANCE"</code> and reasons contain <code class="inline">"8 pts over"</code>.</p>
+        <a class="next" href="#p7">Next: routing →</a>
+      </article>
+
+      <article class="part" id="p7">
+        <div class="kicker">Part 7</div>
+        <h2>Approval routing</h2>
+        <p>Directory: <span class="path">src/modules/approvals/route.ts</span></p>
+        <p>The engine already computed the three signals. Routing is a tiny pure function so the rule is easy to read and test. <code class="inline">FINANCE</code> in this codebase means <em>Manager then Finance</em>, not Finance alone. Sequence 1 is always Manager when any excess exists.</p>
+<pre>export function routeRevision(signals, policy) {
+  if (signals.maxLineExcessBps &lt;= 0) return "NONE";
+  if (
+    signals.maxLineExcessBps &gt;= policy.financeLineExcessBps ||
+    signals.blendedExcessBps &gt;= policy.financeBlendedExcessBps ||
+    signals.excessValuePaise &gt;= policy.financeExcessValuePaise
+  ) return "FINANCE";
+  return "MANAGER";
+}</pre>
+        <table>
+          <tr><th>Signals</th><th>requiredLevel</th><th>Steps created on submit</th></tr>
+          <tr><td>Every line excess = 0</td><td>NONE</td><td>None. Quote becomes APPROVED immediately (auto-approve).</td></tr>
+          <tr><td>Some excess, none of the finance triggers</td><td>MANAGER</td><td>One step, sequence 1, level MANAGER.</td></tr>
+          <tr><td>Any finance trigger</td><td>FINANCE</td><td>MANAGER seq 1, FINANCE seq 2.</td></tr>
+        </table>
+        <p>The engine imports this function, so live DecisionPanel and server submit always agree.</p>
+        <a class="next" href="#p8">Next: quote actions →</a>
+      </article>
+
+      <article class="part" id="p8">
+        <div class="kicker">Part 8</div>
+        <h2>Quote lifecycle actions</h2>
+        <p>Directory:</p>
+        <div class="dir">src/modules/quotes/
+  actions.ts   ← create, saveDraft, submit, revise, dismissUpsell
+  queries.ts   ← list, getQuoteDetail, getBuilderData
+  schemas.ts   ← zod: ids, qty, bps only — never client totals
+  stages.ts    ← Kanban derivation</div>
+        <p>Screens: <span class="path">src/app/(internal)/app/quotations/page.tsx</span> (list), <span class="path">new/page.tsx</span>, <span class="path">[code]/page.tsx</span> (the deal workspace).</p>
+
+        <h3>Theory: never trust the client</h3>
+        <p>The builder may show a live total. Submit does not save that total. <code class="inline">draftSchema</code> accepts quote id, order discount bps, and lines as <code class="inline">{ productId, variantId, qty, lineDiscountBps }</code>. Server reloads the product, variant extra price, cost, tax, category ceiling, and the customer’s price list, then runs the engine. If a SKU was deactivated, save throws.</p>
+
+        <h3>1. Create</h3>
+        <p><code class="inline">createQuote</code> requires REP or ADMIN. It mints <code class="inline">Q-…</code>, creates revision v1 empty, points <code class="inline">currentRevisionId</code> at it, logs <code class="inline">QUOTE_CREATED</code>, redirects to the builder.</p>
+<pre>const created = await tx.quote.create({ data: { code, customerId, ownerId: session.userId } });
+const revision = await tx.quoteRevision.create({
+  data: { quoteId: created.id, version: 1, createdById: session.userId },
+});
+await tx.quote.update({ where: { id: created.id }, data: { currentRevisionId: revision.id } });</pre>
+
+        <h3>2. Save draft</h3>
+        <p>Only while <code class="inline">approvalStatus</code> is NONE or STALE (editable). Owner-only, unless ADMIN. Replaces lines on the current revision, writes engine totals onto the revision row, logs LINE_ADDED / UPDATED / REMOVED with before/after in <code class="inline">meta</code>.</p>
+
+        <h3>3. Submit</h3>
+        <p><code class="inline">submitForApproval</code> saves first (so the frozen snapshot matches what the rep saw), then in one transaction:</p>
+        <ol class="theory">
+          <li>Delete any leftover steps on this revision.</li>
+          <li>If not NONE, create Manager step; if FINANCE, create Finance step too.</li>
+          <li>Stamp <code class="inline">submittedAt</code> on the revision (locks the builder).</li>
+          <li>Set quote <code class="inline">approvalStatus</code> to PENDING, or APPROVED if NONE.</li>
+          <li>Audit SUBMITTED with the reason strings; AUTO_APPROVED if clean.</li>
+        </ol>
+<pre>if (evaluation.requiredLevel !== "NONE") {
+  await tx.approvalStep.create({ data: { revisionId, level: "MANAGER", sequence: 1 } });
+  if (evaluation.requiredLevel === "FINANCE")
+    await tx.approvalStep.create({ data: { revisionId, level: "FINANCE", sequence: 2 } });
+}
+await tx.quote.update({
+  where: { id: quote.id },
+  data: { approvalStatus: evaluation.requiredLevel === "NONE" ? "APPROVED" : "PENDING" },
+});</pre>
+
+        <h3>4. Revise</h3>
+        <p>Editing an already submitted/approved quote is not an in-place edit. <code class="inline">reviseQuote</code> marks old steps STALE, clones lines into version+1, sets quote <code class="inline">approvalStatus = STALE</code>, logs REVISED. The rep then saves/submits v2, which re-runs the engine and creates fresh steps. v1 remains viewable.</p>
+        <p>Person B’s portal counter does a similar “new revision + re-route” using the same engine and router. That is why your snapshot shape has to stay stable.</p>
+        <a class="next" href="#p9">Next: inbox →</a>
+      </article>
+
+      <article class="part" id="p9">
+        <div class="kicker">Part 9</div>
+        <h2>Approval inbox and decisions</h2>
+        <p>Directory:</p>
+        <div class="dir">src/modules/approvals/
+  route.ts     ← already covered
+  queries.ts   ← inbox + pending badge
+  actions.ts   ← approve, returnForRevision, reject
+src/app/(internal)/app/approvals/page.tsx
+src/app/(internal)/app/approvals/[code]/page.tsx
+src/components/approvals/AuditTrail.tsx</div>
+        <p>The internal layout loads a pending count for the side nav: <span class="path">src/app/(internal)/app/layout.tsx</span>.</p>
+
+        <h3>Theory: steps belong to a revision, not to a quote</h3>
+        <p>When v2 is created, v1’s steps become STALE. Finance must not act on a Manager-pending revision. The inbox query encodes that: Finance rows require a sibling Manager step already APPROVED. The action encodes it again: previous sequence must be APPROVED, step must be PENDING, caller role must match the step level (ADMIN may act as either).</p>
+        <p>A reason of at least 3 characters is required. Governance without a sentence is not governance.</p>
+
+        <h3>Snippet — inbox gating</h3>
+<pre>export function getApprovalInbox(role, all = false) {
+  const level = role === "FINANCE" ? "FINANCE" : "MANAGER";
+  return prisma.approvalStep.findMany({
+    where: {
+      level,
+      ...(all ? {} : { status: "PENDING" }),
+      ...(level === "FINANCE"
+        ? { revision: { approvalSteps: { some: { level: "MANAGER", status: "APPROVED" } } } }
+        : {}),
+    },
+  });
+}</pre>
+
+        <h3>What each button does to approvalStatus</h3>
+        <table>
+          <tr><th>Action</th><th>This step</th><th>Quote.approvalStatus</th></tr>
+          <tr><td>Approve, more steps remain</td><td>APPROVED</td><td>stays PENDING</td></tr>
+          <tr><td>Approve, last step</td><td>APPROVED</td><td>APPROVED — now Person A can Send</td></tr>
+          <tr><td>Return</td><td>RETURNED; later steps STALE</td><td>NONE — rep clicks Revise</td></tr>
+          <tr><td>Reject</td><td>REJECTED; later steps STALE</td><td>REJECTED — Kanban collapsed column</td></tr>
+        </table>
+<pre>const remaining = await tx.approvalStep.count({
+  where: { revisionId: step.revisionId, id: { not: step.id }, status: "PENDING" },
+});
+await tx.quote.update({
+  where: { id: step.revision.quoteId },
+  data: { approvalStatus: remaining ? "PENDING" : "APPROVED" },
+});</pre>
+        <p>None of these functions touch customer, fulfillment, or payment status.</p>
+        <a class="next" href="#p10">Next: pipeline →</a>
+      </article>
+
+      <article class="part" id="p10">
+        <div class="kicker">Part 10</div>
+        <h2>Pipeline Kanban</h2>
+        <p>Directories: <span class="path">src/modules/quotes/stages.ts</span>, <span class="path">src/components/quotes/KanbanBoard.tsx</span>, <span class="path">src/app/(internal)/app/pipeline/page.tsx</span>.</p>
+        <p>There is no drag-and-drop. Dragging would fake a stage. A card sits in a column because of real status. “Switch to table view” is just a link to the quotations list.</p>
+        <p>Derivation is a priority waterfall. First match wins:</p>
+<pre>export function deriveStage(quote) {
+  if (quote.approvalStatus === "REJECTED") return "Rejected";
+  if (quote.paymentStatus === "PAID") return "Invoiced / Paid";
+  if (quote.fulfillmentStatus === "FULFILLED") return "Fulfilled";
+  if (quote.customerStatus === "CONFIRMED") return "Confirmed";
+  if (quote.customerStatus === "SENT" || quote.customerStatus === "NEGOTIATING")
+    return "Sent / Negotiating";
+  if (quote.approvalStatus === "APPROVED") return "Approved";
+  if (quote.approvalStatus === "PENDING") return "Pending Approval";
+  return "Draft";
+}</pre>
+        <p>That is why Person A’s Submit moves a card from Draft → Pending Approval with no Kanban code of its own, and why Person B’s payment later moves it to Invoiced / Paid without editing this file.</p>
+        <a class="next" href="#p11">Next: upsell →</a>
+      </article>
+
+      <article class="part" id="p11">
+        <div class="kicker">Part 11</div>
+        <h2>Upsell panel</h2>
+        <p>Directories: <span class="path">src/modules/upsell/suggest.ts</span> (pure), <span class="path">src/modules/upsell/queries.ts</span>, UI <span class="path">src/components/quotes/UpsellPanel.tsx</span>. Pairings are seeded and optionally edited under Settings → Upsell.</p>
+        <p>The brief wants suggestions from co-purchase history and promotions, not an LLM. Ranking is deterministic:</p>
+        <p><strong>score = pairing.weight × 10 + coPurchaseCount + (promoted ? 15 : 0)</strong></p>
+        <p>A suggestion is dropped if it is already on the quote, already dismissed on this revision, or its own margin % is below policy <code class="inline">upsellMarginFloorBps</code> (seeded 20%). Top 3 survive.</p>
+<pre>if (!current.has(pairing.productId) || current.has(product.id)
+    || hidden.has(product.id) || marginBps &lt; marginFloorBps) continue;
+const score = pairing.weight * 10 + (pairing.coPurchaseCount ?? 0)
+  + (product.isPromoted ? 15 : 0);</pre>
+        <p>The builder then re-runs the pricing engine on “current lines + this item at qty 1, 0% discount” so the card can show margin delta in rupees and the resulting quote margin %. Add calls <code class="inline">saveDraft</code> with <code class="inline">auditAction: "UPSELL_ADDED"</code>. Dismiss writes the product id into <code class="inline">QuoteRevision.dismissedUpsellIds</code> JSON and logs UPSELL_DISMISSED. After refresh, it stays gone.</p>
+        <a class="next" href="#p12">Next: builder UI →</a>
+      </article>
+
+      <article class="part" id="p12">
+        <div class="kicker">Part 12</div>
+        <h2>Quote builder UI — live panels</h2>
+        <p>The page <span class="path">src/app/(internal)/app/quotations/[code]/page.tsx</span> is a deal workspace with tabs: overview, timeline, messages, fulfillment preview, billing preview. Overview mounts the builder. The page only loads data and buttons; it does not price.</p>
+        <div class="dir">src/components/quotes/
+  QuoteBuilder.tsx   ← client: local lines, calls engine live
+  LineRow.tsx        ← qty, discount, allowed %, excess badge
+  TotalsPanel.tsx    ← subtotal, tax, total, margin
+  DecisionPanel.tsx  ← "What happens on submit"
+  UpsellPanel.tsx
+  ImpactPreview.tsx
+  KanbanBoard.tsx
+  DealTimeline.tsx
+  RevisionDiff.tsx</div>
+
+        <h3>Theory: two evaluations</h3>
+        <p>While typing, the client imports the same <code class="inline">evaluateRevision</code> and shows DecisionPanel immediately. That is how a rep fixes an 18% service line <em>before</em> bothering the manager. On Save/Submit the server recomputes. The client is a preview; the revision row is the source of truth.</p>
+        <p>The builder is editable only when the user is owner (or admin), approval is NONE or STALE, and the revision has no <code class="inline">submittedAt</code>. After submit, controls lock. Revise creates v+1 and unlocks again.</p>
+
+        <h3>Snippet — DecisionPanel is just the engine result</h3>
+<pre>export function DecisionPanel({ evaluation }) {
+  const label = evaluation.requiredLevel === "FINANCE"
+    ? "Sales Manager → Finance"
+    : evaluation.requiredLevel === "MANAGER"
+      ? "Sales Manager"
+      : "Auto-approved";
+  return (
+    &lt;section&gt;
+      &lt;h2&gt;{label}&lt;/h2&gt;
+      &lt;ReasonList reasons={evaluation.reasons} /&gt;
+    &lt;/section&gt;
+  );
+}</pre>
+        <p>Shared display helpers: <span class="path">src/components/shared/Money.tsx</span>, <span class="path">Percent.tsx</span>, <span class="path">ReasonList.tsx</span>, <span class="path">StatusBadge.tsx</span>.</p>
+        <p>Shell / nav: <span class="path">src/components/layout/AppShell.tsx</span>, <span class="path">SideNav.tsx</span>, <span class="path">TopMenu.tsx</span> (Quotations, Pipeline, Reload Data, Go to Back-end, Close Workspace). Reload Data calls <code class="inline">reloadWorkspace</code> in quotes actions, which revalidates <code class="inline">/app</code>.</p>
+        <a class="next" href="#p13">Next: timeline &amp; send →</a>
+      </article>
+
+      <article class="part" id="p13">
+        <div class="kicker">Part 13</div>
+        <h2>Timeline, revision diff, impact preview, send</h2>
+        <p>These sit on the quote page so the deal is one workspace. Person A renders them; some of the functions are reused by Person B.</p>
+
+        <h3>Timeline</h3>
+        <p><span class="path">src/modules/timeline/queries.ts</span> + <span class="path">src/components/quotes/DealTimeline.tsx</span></p>
+<pre>export async function getTimeline(quoteId: number) {
+  const events = await prisma.auditEvent.findMany({
+    where: { quoteId },
+    include: { actor: true },
+    orderBy: { at: "asc" },
+  });
+  return events.map((event) =&gt; ({
+    id: event.id, action: event.action,
+    actor: event.actor?.name ?? "System",
+    at: event.at, reason: event.reason, meta: event.meta,
+  }));
+}</pre>
+        <p>If your actions logged with <code class="inline">quoteId</code>, this list is automatically complete. Person B’s payments appear here too without a second query design.</p>
+
+        <h3>Revision diff</h3>
+        <p><span class="path">src/modules/negotiation/diff.ts</span> (pure) + <span class="path">src/components/quotes/RevisionDiff.tsx</span>. Lines are keyed by <code class="inline">productId:variantId</code>. Output is sentences: quantity 2 → 3, discount 12% → 15%, added, removed, plus total/margin deltas. The quote page diffs current vs previous version. The portal shows the same function without margin (Person B).</p>
+
+        <h3>Impact preview (internal)</h3>
+        <p><span class="path">src/modules/preview/impact.ts</span> + <span class="path">ImpactPreview.tsx</span>. This composes engines you already have: pricing + (Person B’s) allocation + first-bill estimate. Internal mode shows total, tax, margin, required level, stock outcome, first bill, and deltas. Customer mode is a different function that only accepts two totals — it physically cannot receive cost.</p>
+<pre>export function computeImpact(input) {
+  const current = evaluateRevision(input.current);
+  const proposed = evaluateRevision(input.proposed);
+  // also runs allocateInventory for stock labels
+  return { current: describe(current, ...), proposed: describe(proposed, ...), deltas };
+}</pre>
+
+        <h3>Send to customer</h3>
+        <p>Still Person A’s last commercial action. Code: <code class="inline">sendToCustomer</code> in <span class="path">src/modules/negotiation/actions.ts</span>, button on the quote overview tab.</p>
+        <p>Allowed when <code class="inline">approvalStatus === APPROVED</code> and not already CONFIRMED. Reps can only send their own quotes. It sets <code class="inline">customerStatus = SENT</code> and logs SENT. It does not create an order. The customer can now see it in the portal (Person B).</p>
+<pre>if (quote.approvalStatus !== "APPROVED")
+  throw new Error("This quotation must be approved before it can be sent.");
+await tx.quote.update({
+  where: { id: quote.id },
+  data: { customerStatus: "SENT", lastActivityAt: new Date() },
+});</pre>
+        <p>“Confirm on behalf” on the same page calls Person B’s <code class="inline">confirmQuotation</code>. Do not write a second confirm path.</p>
+        <a class="next" href="#p14">Next: worked example →</a>
+      </article>
+
+      <article class="part" id="p14">
+        <div class="kicker">Part 14</div>
+        <h2>Worked example you must be able to narrate</h2>
+        <p>Acme is GOLD. Gold price list is 5% off list — that is unit price, not governed discount. Hardware ceiling 15%, Services 10%. Policy finance line excess = 8 pts.</p>
+        <ol class="theory">
+          <li>Ravi logs in as REP → <span class="path">identity/actions.ts</span> → lands on <code class="inline">/app/dashboard</code>.</li>
+          <li>New quotation for Acme → <code class="inline">createQuote</code> → <code class="inline">Q-…</code> v1 DRAFT / approval NONE.</li>
+          <li>Add Laptop Pro 14 at 12% line discount. Allowed = min(15% Gold, 15% Hardware) = 15%. Excess 0. OK.</li>
+          <li>Add Onsite Setup Service at 18%. Allowed = min(15%, 10% Services) = 10%. Effective 18%. Excess = 8 pts. Excess value is small, but max line excess 800 ≥ 800 → router returns FINANCE.</li>
+          <li>DecisionPanel, still before submit, shows Manager → Finance and the sentence with “8 pts over”. This is the USP.</li>
+          <li>Submit → persist snapshot on v1 → two ApprovalSteps → quote PENDING. Kanban: Pending Approval. Finance inbox is empty (manager has not approved).</li>
+          <li>Manager approves with a reason → Finance inbox lights up. Finance approves → quote APPROVED. Kanban: Approved.</li>
+          <li>Ravi clicks Send → customerStatus SENT. Kanban: Sent / Negotiating. Hand off to Person B (portal, confirm, stock, money).</li>
+        </ol>
+        <p>If Ravi instead sets Setup to 10% before submit: excess 0, requiredLevel NONE, submit auto-approves, no inbox row, audit AUTO_APPROVED.</p>
+        <p>If after approval Ravi clicks Revise: v2 is born, v1 steps STALE, status STALE, v1 still in <code class="inline">quote.revisions</code>.</p>
+        <a class="next" href="#p15">Next: file index →</a>
+      </article>
+
+      <article class="part" id="p15">
+        <div class="kicker">Part 15</div>
+        <h2>File index — Person A only</h2>
+        <table>
+          <tr><th>Feature</th><th>Logic</th><th>UI / route</th></tr>
+          <tr><td>Auth</td><td><span class="path">src/modules/identity/</span>, <span class="path">src/lib/auth.ts</span>, <span class="path">session-token.ts</span>, <span class="path">roles.ts</span>, <span class="path">src/proxy.ts</span></td><td><span class="path">src/app/(auth)/</span></td></tr>
+          <tr><td>Money / codes / audit</td><td><span class="path">src/lib/money.ts</span>, <span class="path">codes.ts</span>, <span class="path">audit.ts</span></td><td>used everywhere</td></tr>
+          <tr><td>Catalog / policy / plans</td><td><span class="path">src/modules/catalog/</span>, <span class="path">policy/</span>, <span class="path">plans/</span></td><td><span class="path">src/app/(internal)/app/settings/</span></td></tr>
+          <tr><td>Warehouse CRUD</td><td><span class="path">src/modules/inventory/actions.ts</span> (save* only)</td><td><span class="path">settings/warehouses/</span></td></tr>
+          <tr><td>Pricing</td><td><span class="path">src/modules/pricing/engine.ts</span></td><td>DecisionPanel, TotalsPanel</td></tr>
+          <tr><td>Routing</td><td><span class="path">src/modules/approvals/route.ts</span></td><td>DecisionPanel label</td></tr>
+          <tr><td>Quote CRUD</td><td><span class="path">src/modules/quotes/actions.ts</span></td><td><span class="path">app/quotations/</span>, QuoteBuilder</td></tr>
+          <tr><td>Approvals</td><td><span class="path">src/modules/approvals/actions.ts</span>, <span class="path">queries.ts</span></td><td><span class="path">app/approvals/</span></td></tr>
+          <tr><td>Pipeline</td><td><span class="path">src/modules/quotes/stages.ts</span></td><td><span class="path">app/pipeline/</span>, KanbanBoard</td></tr>
+          <tr><td>Upsell</td><td><span class="path">src/modules/upsell/suggest.ts</span></td><td>UpsellPanel, settings/upsell</td></tr>
+          <tr><td>Impact (internal)</td><td><span class="path">src/modules/preview/impact.ts</span></td><td>ImpactPreview</td></tr>
+          <tr><td>Diff</td><td><span class="path">src/modules/negotiation/diff.ts</span></td><td>RevisionDiff</td></tr>
+          <tr><td>Timeline</td><td><span class="path">src/modules/timeline/queries.ts</span></td><td>DealTimeline</td></tr>
+          <tr><td>Send</td><td><span class="path">src/modules/negotiation/actions.ts</span> <code class="inline">sendToCustomer</code></td><td>quote overview tab</td></tr>
+          <tr><td>Policies in English</td><td><span class="path">docs/policies.md</span></td><td>—</td></tr>
+          <tr><td>Schema / seed</td><td><span class="path">prisma/schema.prisma</span>, <span class="path">prisma/seed.ts</span></td><td>—</td></tr>
+        </table>
+        <p class="ok">Not Person A: <span class="path">negotiation/confirm.ts</span>, portal queries, <span class="path">inventory/allocate.ts</span>, <span class="path">billing/*</span> except using impact’s first-bill estimate, deal-health and reports (placeholders).</p>
+        <p>When you are done, you should be able to open any file in the table and say what it returns. Then have Person B teach confirm + allocate + prorate the same way.</p>
+      </article>
+    </main>
+  </div>
+  <script>
+    const links = [...document.querySelectorAll("nav.toc a")];
+    const parts = links.map((a) => document.querySelector(a.getAttribute("href")));
+    const io = new IntersectionObserver((entries) => {
+      const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!visible) return;
+      links.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + visible.target.id));
+    }, { rootMargin: "-20% 0px -60% 0px", threshold: [0.2, 0.5, 1] });
+    parts.forEach((el) => el && io.observe(el));
+  </script>
+</body>
+</html>

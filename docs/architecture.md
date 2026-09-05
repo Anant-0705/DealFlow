@@ -1,8 +1,8 @@
-# AccordFlow architecture
+# DealFlow architecture
 
-![AccordFlow Phase 3 architecture](architecture.png)
+![DealFlow Phase 3 architecture](architecture.png)
 
-AccordFlow is one Next.js application backed by PostgreSQL through Prisma. Server Components read role-scoped data, Server Actions authenticate and validate every mutation, and audit events connect each business action to the quotation timeline. It runs locally without third-party network services.
+DealFlow is one Next.js application backed by PostgreSQL through Prisma. Server Components read role-scoped data, Server Actions authenticate and validate every mutation, and audit events connect each business action to the quotation timeline. It runs locally without third-party network services. Customer invitations and password resets are emailed through Resend when `RESEND_API_KEY` is set; otherwise the invite link is shown in Settings.
 
 ```mermaid
 flowchart LR
@@ -24,7 +24,7 @@ The three pure engines—pricing, allocation, and proration—accept plain input
 
 ## Data model groups
 
-- Identity: `User`, `Customer`, `CustomerInvite`, `Task`.
+- Identity: `User`, `Customer`, `CustomerInvite`, `PasswordReset`, `Task`.
 - Configuration: `Category`, `Product`, `ProductVariant`, `PriceList`, `DiscountPolicy`, `Warehouse`, `Stock`, `StockReceipt`, `SubscriptionPlan`, `ProductPairing`.
 - Deal: `Quote` → many `QuoteRevision` → many `QuoteLine`; one revision is the current immutable snapshot.
 - Governance: `QuoteRevision` → many `ApprovalStep`; `AuditEvent` records every meaningful action; `PortalMessage` is scoped by customer and quote.

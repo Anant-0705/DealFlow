@@ -6,7 +6,7 @@ import type { ReportRow } from "./queries";
 
 export async function buildReportWorkbook(rows: ReportRow[], totals: { count: number; totalPaise: number; marginPaise: number; weightedDiscountBps: number }, filters: ReportFilters) {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "AccordFlow";
+  workbook.creator = "DealFlow";
   workbook.created = new Date();
   const report = workbook.addWorksheet("Report", { views: [{ state: "frozen", ySplit: 1 }] });
   report.columns = [

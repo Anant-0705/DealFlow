@@ -1,4 +1,6 @@
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
+loadEnv({ path: ".env.local" });
+loadEnv();
 
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
@@ -21,8 +23,9 @@ async function main() {
     const anomaly = await db.quote.findUnique({ where: { code: "Q-1042" }, include: { currentRevision: true } });
     const slippage = await db.quote.findUnique({ where: { code: "Q-1043" }, include: { orders: { include: { lines: { include: { backorders: true } } } } } });
     const policy = await db.discountPolicy.findUnique({ where: { id: 1 } });
+    const company = await db.companyProfile.findUnique({ where: { id: 1 } });
     if (users !== 8 || customers !== 3 || quotes !== 25) throw new Error(`Unexpected seed counts: ${users} users, ${customers} customers, ${quotes} quotes`);
-    if (!policy || !stalled || !anomaly?.currentRevision || !slippage) throw new Error("One or more Phase 3 seed scenarios are missing");
+    if (!policy || !company?.gstin || !stalled || !anomaly?.currentRevision || !slippage) throw new Error("One or more Phase 3 seed scenarios are missing");
     const idleDays = Math.floor((Date.now() - stalled.lastActivityAt.getTime()) / 86_400_000);
     if (idleDays <= policy.staleAfterDays) throw new Error("Q-1039 is not stale enough");
     const anomalyBps = anomaly.currentRevision.subtotalPaise ? anomaly.currentRevision.discountPaise * 10_000 / anomaly.currentRevision.subtotalPaise : 0;

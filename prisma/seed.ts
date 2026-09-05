@@ -16,17 +16,17 @@ export async function seedDatabase(db: Prisma.TransactionClient) {
 
   const passwordHash = await hash("demo1234", 10);
   const [admin, manager, finance, ravi, priya] = await Promise.all([
-    db.user.create({ data: { email: "admin@accordflow.demo", name: "Aarav Admin", role: "ADMIN", passwordHash } }),
-    db.user.create({ data: { email: "manager@accordflow.demo", name: "Jane Shah", role: "MANAGER", passwordHash } }),
-    db.user.create({ data: { email: "finance@accordflow.demo", name: "Rhea Iyer", role: "FINANCE", passwordHash } }),
-    db.user.create({ data: { email: "ravi@accordflow.demo", name: "Ravi Rao", role: "REP", passwordHash } }),
-    db.user.create({ data: { email: "priya@accordflow.demo", name: "Priya Mehta", role: "REP", passwordHash } }),
+    db.user.create({ data: { email: "admin@dealflow.demo", name: "Aarav Admin", role: "ADMIN", passwordHash } }),
+    db.user.create({ data: { email: "manager@dealflow.demo", name: "Jane Shah", role: "MANAGER", passwordHash } }),
+    db.user.create({ data: { email: "finance@dealflow.demo", name: "Rhea Iyer", role: "FINANCE", passwordHash } }),
+    db.user.create({ data: { email: "ravi@dealflow.demo", name: "Ravi Rao", role: "REP", passwordHash } }),
+    db.user.create({ data: { email: "priya@dealflow.demo", name: "Priya Mehta", role: "REP", passwordHash } }),
   ]);
 
   const [acme, beta, nova] = await Promise.all([
-    db.customer.create({ data: { name: "Acme Corp", code: "C-1001", tier: "GOLD", email: "buyer@acme.demo", notes: "Strategic workplace-modernisation account." } }),
-    db.customer.create({ data: { name: "Beta Industries", code: "C-1002", tier: "SILVER", email: "buyer@beta.demo" } }),
-    db.customer.create({ data: { name: "Nova Retail", code: "C-1003", tier: "BRONZE", email: "buyer@nova.demo" } }),
+    db.customer.create({ data: { name: "Acme Corp", code: "C-1001", tier: "GOLD", email: "buyer@acme.demo", phone: "+91 80 2222 1001", gstin: "29AABCA1234A1Z5", billingAddress: "Acme Tower, MG Road, Bengaluru 560001", notes: "Strategic workplace-modernisation account." } }),
+    db.customer.create({ data: { name: "Beta Industries", code: "C-1002", tier: "SILVER", email: "buyer@beta.demo", phone: "+91 22 4000 2202", gstin: "27AABCB5678B1Z2", billingAddress: "Beta House, Andheri East, Mumbai 400069" } }),
+    db.customer.create({ data: { name: "Nova Retail", code: "C-1003", tier: "BRONZE", email: "buyer@nova.demo", phone: "+91 11 4150 3303", gstin: "07AABCN9012C1Z8", billingAddress: "Nova Mart, Connaught Place, New Delhi 110001" } }),
   ]);
   await Promise.all([
     db.user.create({ data: { email: "buyer@acme.demo", name: "Acme Buyer", role: "CUSTOMER", customerId: acme.id, passwordHash } }),
@@ -84,6 +84,28 @@ export async function seedDatabase(db: Prisma.TransactionClient) {
     { name: "Gold strategic", tier: "GOLD", currency: "INR", rule: "PERCENT_OFF", valueBps: 500 },
   ] });
   const policy = await db.discountPolicy.create({ data: { id: 1 } });
+  await db.companyProfile.create({
+    data: {
+      id: 1,
+      legalName: "DealFlow Technologies Pvt. Ltd.",
+      tradingName: "DealFlow",
+      tagline: "Quote-to-cash that shows its work",
+      email: "billing@dealflow.demo",
+      phone: "+91 80 4000 1200",
+      addressLine1: "14 Residency Road",
+      addressLine2: "Shanthala Nagar",
+      city: "Bengaluru",
+      state: "Karnataka",
+      pincode: "560025",
+      country: "India",
+      gstin: "29AABCU9603R1ZM",
+      pan: "AABCU9603R",
+      bankName: "HDFC Bank",
+      bankAccountName: "DealFlow Technologies Pvt. Ltd.",
+      bankAccountNo: "50100123456789",
+      bankIfsc: "HDFC0001234",
+    },
+  });
 
   const [mainWarehouse, eastDepot] = await Promise.all([
     db.warehouse.create({ data: { name: "Main Warehouse", code: "MAIN", shippingCostWeightPaise: 40_000, replenishmentLeadDays: 3 } }),

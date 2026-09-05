@@ -1,4 +1,4 @@
-# AccordFlow business policies
+# DealFlow business policies
 
 1. The customer tier ceiling and product-category ceiling are both enforced. The lower ceiling wins for each quote line.
 2. Any line above its allowed ceiling requires Sales Manager approval.

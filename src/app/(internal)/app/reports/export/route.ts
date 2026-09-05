@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   return new Response(new Uint8Array(workbook), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="accordflow-report-${filters.period}.xlsx"`,
+      "Content-Disposition": `attachment; filename="dealflow-report-${filters.period}.xlsx"`,
       "Cache-Control": "no-store",
     },
   });

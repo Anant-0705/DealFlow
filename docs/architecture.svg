@@ -2,7 +2,7 @@
   <rect width="1600" height="1000" fill="#f5ebe0"/>
   <style>text{font-family:Arial,sans-serif;fill:#2a211d}.title{font-size:38px;font-weight:700}.sub{font-size:17px;fill:#715f55}.box{fill:#fffaf5;stroke:#b79b8c;stroke-width:2}.engine{fill:#e2f0e7;stroke:#5f8069;stroke-width:3}.head{font-size:20px;font-weight:700}.small{font-size:14px;fill:#695b53}.group{fill:#eadbd2;stroke:#c5aa9b;stroke-width:2}.arrow{stroke:#80695e;stroke-width:2;fill:none;marker-end:url(#arrow)}</style>
   <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#80695e"/></marker></defs>
-  <text x="60" y="62" class="title">AccordFlow — Phase 3 architecture</text>
+  <text x="60" y="62" class="title">DealFlow — Phase 3 architecture</text>
   <text x="60" y="92" class="sub">Quote-to-cash that shows its work · Next.js + Prisma + PostgreSQL · deterministic engines in green</text>
   <rect x="60" y="130" rx="16" width="210" height="90" class="box"/><text x="82" y="165" class="head">Identity &amp; roles</text><text x="82" y="194" class="small">sessions · role guards</text>
   <rect x="310" y="130" rx="16" width="230" height="90" class="box"/><text x="332" y="165" class="head">Catalog &amp; policy</text><text x="332" y="194" class="small">products · thresholds</text>

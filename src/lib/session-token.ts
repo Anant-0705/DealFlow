@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { UserRole } from "@/generated/prisma/enums";
 import { isUserRole } from "./roles";
 
-export const sessionCookieName = "accordflow_session";
+export const sessionCookieName = "dealflow_session";
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 export type SessionClaims = {

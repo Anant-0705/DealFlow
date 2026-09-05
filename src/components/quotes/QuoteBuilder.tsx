@@ -21,7 +21,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { SubmitButton } from "@/components/ui/submit-button";
 
-type Product = { id: number; name: string; categoryId: number; unit: string; taxBps: number; listPricePaise: number; costPaise: number; isPromoted: boolean; isSubscription: boolean; plan: { id: number; interval: "MONTHLY" | "QUARTERLY" | "YEARLY"; prorateChanges: boolean; creditOnCancel: boolean } | null; category: { id: number; name: string; discountCeilingBps: number }; variants: Array<{ id: number; attributeName: string; attributeValue: string; extraPricePaise: number }> };
+type Product = { id: number; name: string; categoryId: number; unit: string; taxBps: number; listPricePaise: number; costPaise: number; isPromoted: boolean; isSubscription: boolean; imageUrl?: string | null; plan: { id: number; interval: "MONTHLY" | "QUARTERLY" | "YEARLY"; prorateChanges: boolean; creditOnCancel: boolean } | null; category: { id: number; name: string; discountCeilingBps: number }; variants: Array<{ id: number; attributeName: string; attributeValue: string; extraPricePaise: number }> };
 type Policy = { tierCeilingBronzeBps: number; tierCeilingSilverBps: number; tierCeilingGoldBps: number; financeLineExcessBps: number; financeBlendedExcessBps: number; financeExcessValuePaise: number; upsellMarginFloorBps: number };
 type Pairing = { productId: number; kind: OfferKind; weight: number; coPurchaseCount?: number; suggestedProduct: Product };
 
@@ -203,6 +203,7 @@ export function QuoteBuilder({ quote, products, policy, pairings, stock, warehou
                 {visibleProducts.length ? visibleProducts.map((product) => {
                   const quotedQty = productQuantities.get(product.id) ?? 0;
                   return <Button type="button" variant="outline" className="product-result" key={product.id} disabled={!editable} onClick={() => addProduct(product)} aria-label={`Add ${product.name} to quotation`}>
+                    {product.imageUrl ? <img src={product.imageUrl} alt="" aria-hidden="true" style={{ width: "36px", height: "36px", borderRadius: "6px", objectFit: "cover", flexShrink: 0, marginRight: "0.5rem", border: "1px solid var(--line, #e2d4c7)" }}/> : null}
                     <span className="product-result-copy"><small>{product.category.name}</small><strong>{product.name}</strong><span>₹{(product.listPricePaise / 100).toLocaleString("en-IN")} / {product.unit}</span></span>
                     {quotedQty > 0 && <Badge variant="secondary">{quotedQty} in quote</Badge>}
                     <Plus data-icon="inline-end"/>

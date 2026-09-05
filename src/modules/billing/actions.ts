@@ -8,12 +8,7 @@ import { logEvent } from "@/lib/audit";
 import { nextCreditNoteCode, nextInvoiceCode } from "@/lib/codes";
 import { parseRupees } from "@/lib/money";
 import { calendarPeriod, prorate, subscriptionPeriod } from "./prorate";
-
-const dateInput = (value: FormDataEntryValue | null) => {
-  const text = String(value ?? "");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) throw new Error("Choose a valid date.");
-  return new Date(`${text}T00:00:00.000Z`);
-};
+import { parseDateInput } from "./date-input";
 
 async function applyCredit(tx: Parameters<typeof logEvent>[0], invoiceId: number, amountPaise: number, reason: string) {
   const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
@@ -31,7 +26,7 @@ export async function modifySubscription(formData: FormData) {
   const session = await requireRole(["FINANCE", "ADMIN"]);
   const subscriptionId = Number(formData.get("subscriptionId"));
   const newQty = Math.floor(Number(formData.get("newQty")));
-  const effectiveAt = dateInput(formData.get("effectiveDate"));
+  const effectiveAt = parseDateInput(formData.get("effectiveDate"));
   if (!Number.isInteger(newQty) || newQty < 0) throw new Error("Quantity must be zero or greater.");
   const orderCode = String(formData.get("orderCode") ?? "");
   await prisma.$transaction(async (tx) => {
@@ -64,7 +59,7 @@ export async function modifySubscription(formData: FormData) {
 export async function cancelSubscription(formData: FormData) {
   const session = await requireRole(["FINANCE", "ADMIN"]);
   const subscriptionId = Number(formData.get("subscriptionId"));
-  const effectiveAt = dateInput(formData.get("effectiveDate"));
+  const effectiveAt = parseDateInput(formData.get("effectiveDate"));
   const orderCode = String(formData.get("orderCode") ?? "");
   await prisma.$transaction(async (tx) => {
     const subscription = await tx.subscription.findUniqueOrThrow({ where: { id: subscriptionId }, include: { plan: true, order: true } });
@@ -87,7 +82,7 @@ export async function cancelSubscription(formData: FormData) {
 
 export async function runBillingAsOf(formData: FormData) {
   const session = await requireRole(["FINANCE", "ADMIN"]);
-  const asOf = dateInput(formData.get("asOf"));
+  const asOf = parseDateInput(formData.get("asOf"));
   const result = await prisma.$transaction(async (tx) => {
     const subscriptions = await tx.subscription.findMany({ where: { status: "ACTIVE", nextBillingAt: { lte: asOf } }, include: { plan: true, order: true, orderLine: { include: { product: true } } } });
     let generated = 0; let skipped = 0;
@@ -134,7 +129,7 @@ export async function recordPayment(formData: FormData) {
   const amountPaise = parseRupees(formData.get("amountRupees"));
   const reference = String(formData.get("reference") ?? "").trim();
   const method = String(formData.get("method") ?? "Bank transfer").trim();
-  const receivedAt = dateInput(formData.get("receivedAt"));
+  const receivedAt = parseDateInput(formData.get("receivedAt"));
   if (amountPaise <= 0 || !reference) throw new Error("Enter a positive amount and payment reference.");
   const outcome = await prisma.$transaction(async (tx) => {
     const existing = await tx.payment.findUnique({ where: { reference } });

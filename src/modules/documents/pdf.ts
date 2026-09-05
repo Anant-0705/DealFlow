@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { getFromStorage } from "../../lib/storage";
 function formatPercent(bps: number, digits = 1) {
   return `${(bps / 100).toFixed(digits)}%`;
 }
@@ -95,11 +96,59 @@ type InvoiceDoc = {
 };
 
 async function embedLogo(doc: PDFDocument, logoDataUrl: string | null) {
-  const fromData = logoDataUrl?.match(/^data:(image\/(?:png|jpeg));base64,(.+)$/);
+  if (!logoDataUrl) {
+    try {
+      const png = readFileSync(join(process.cwd(), "public/branding/logo.png"));
+      return doc.embedPng(png);
+    } catch {
+      return null;
+    }
+  }
+
+  const fromData = logoDataUrl.match(/^data:(image\/(?:png|jpeg));base64,(.+)$/);
   if (fromData) {
     const bytes = Buffer.from(fromData[2], "base64");
     return fromData[1] === "image/png" ? doc.embedPng(bytes) : doc.embedJpg(bytes);
   }
+
+  if (logoDataUrl.startsWith("/uploads/")) {
+    try {
+      const bytes = readFileSync(join(process.cwd(), "public", logoDataUrl.replace(/^\//, "")));
+      return logoDataUrl.endsWith(".jpg") || logoDataUrl.endsWith(".jpeg") ? doc.embedJpg(bytes) : doc.embedPng(bytes);
+    } catch {
+      // ignore
+    }
+  }
+
+  if (logoDataUrl.startsWith("/api/media/")) {
+    try {
+      const key = logoDataUrl.replace("/api/media/", "");
+      const stored = await getFromStorage(key);
+      if (stored) {
+        return stored.contentType.includes("jpeg") || stored.contentType.includes("jpg")
+          ? doc.embedJpg(stored.buffer)
+          : doc.embedPng(stored.buffer);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (logoDataUrl.startsWith("http://") || logoDataUrl.startsWith("https://")) {
+    try {
+      const res = await fetch(logoDataUrl);
+      if (res.ok) {
+        const bytes = Buffer.from(await res.arrayBuffer());
+        const contentType = res.headers.get("content-type") || "";
+        return contentType.includes("jpeg") || contentType.includes("jpg") || logoDataUrl.endsWith(".jpg") || logoDataUrl.endsWith(".jpeg")
+          ? doc.embedJpg(bytes)
+          : doc.embedPng(bytes);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   try {
     const png = readFileSync(join(process.cwd(), "public/branding/logo.png"));
     return doc.embedPng(png);

@@ -13,7 +13,7 @@ export default async function CompanySettingsPage({ searchParams }: { searchPara
   const gaps = companyIdentityGaps(company);
   return (
     <div className="settings-grid">
-      <form action={saveCompanyProfile} className="panel form-stack" encType="multipart/form-data">
+      <form action={saveCompanyProfile} className="panel form-stack">
         <div className="panel-heading">
           <div>
             <span className="eyebrow">Letterhead</span>

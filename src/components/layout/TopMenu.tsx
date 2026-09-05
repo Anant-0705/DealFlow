@@ -26,7 +26,7 @@ export function TopMenu({ canConfigure }: { canConfigure: boolean }) {
     <div className="top-utilities">
       <Button variant="ghost" type="button" onClick={refresh} title="Refresh pricing, stock and approvals"><RefreshCw data-icon="inline-start"/><span className="menu-label">Reload Data</span></Button>
       {canConfigure ? <Link href="/app/settings" className={buttonVariants({ variant: pathname.startsWith("/app/settings") ? "secondary" : "ghost" })}><Settings2 data-icon="inline-start"/><span className="menu-label">Go to Back-end</span></Link> : <span className={cn(buttonVariants({ variant: "ghost" }), "disabled-link")} title="Admin or manager access required"><Settings2 data-icon="inline-start"/><span className="menu-label">Go to Back-end</span></span>}
-      <form action={logout}><Button variant="ghost" className="close-workspace" title="Sign out and close workspace"><LogOut data-icon="inline-start"/><span className="menu-label">Close Workspace</span></Button></form>
+      <form action={logout}><Button type="submit" variant="ghost" className="close-workspace" title="Sign out and close workspace"><LogOut data-icon="inline-start"/><span className="menu-label">Close Workspace</span></Button></form>
     </div>
     {message && <div className="toast" role="status">{message}</div>}
   </nav>;

@@ -154,6 +154,7 @@ model User {
   auditEvents      AuditEvent[]
   recordedPayments Payment[]       @relation("PaymentRecorder")
   portalMessages   PortalMessage[]
+  customerInvites  CustomerInvite[] @relation("CustomerInviteCreator")
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -169,11 +170,29 @@ model Customer {
   email     String
   notes     String?
   users     User[]
+  invites   CustomerInvite[]
   quotes    Quote[]
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
   @@index([tier])
+}
+
+model CustomerInvite {
+  id          Int       @id @default(autoincrement())
+  customerId  Int
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  email       String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdById Int
+  createdBy   User      @relation("CustomerInviteCreator", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@index([customerId, email])
+  @@index([expiresAt])
 }
 
 model Category {

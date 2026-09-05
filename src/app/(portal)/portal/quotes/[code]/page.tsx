@@ -48,7 +48,7 @@ export default async function PortalQuotePage({
 
     <div className="portal-action-grid">
       <CounterOfferForm quoteCode={quote.code} currentTotalPaise={quote.currentRevision.totalPaise} orderDiscountBps={quote.currentRevision.orderDiscountBps} lines={safeLines} disabled={quote.customerStatus === "CONFIRMED" || quote.approvalStatus === "PENDING"}/>
-      <Card><CardHeader><CardTitle>Conversation</CardTitle><CardDescription>Messages shared with your sales team.</CardDescription></CardHeader><CardContent><MessageThread messages={quote.messages}/><form action={postMessage} className="message-compose"><input type="hidden" name="quoteCode" value={quote.code}/><Textarea name="text" required placeholder="Write a message to your sales team"/><Button variant="outline" size="sm">Send message</Button></form></CardContent></Card>
+      <Card><CardHeader><CardTitle>Conversation</CardTitle><CardDescription>Messages shared with your sales team.</CardDescription></CardHeader><CardContent><MessageThread messages={quote.messages}/><form action={postMessage} className="message-compose"><input type="hidden" name="quoteCode" value={quote.code}/><Textarea name="text" required placeholder="Write a message to your sales team"/><Button type="submit" variant="outline" size="sm">Send message</Button></form></CardContent></Card>
     </div>
     <ConfirmButton quoteCode={quote.code} revisionId={quote.currentRevision.id} approvalStatus={quote.approvalStatus} customerStatus={quote.customerStatus}/>
   </div>;

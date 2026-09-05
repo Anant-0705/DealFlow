@@ -7,6 +7,7 @@ import { MessageThread } from "@/components/portal/MessageThread";
 import { SplitPlanTable } from "@/components/fulfillment/SplitPlanTable";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/money";
@@ -53,9 +54,10 @@ export default async function QuotePage({
 
     {tab === "overview" && <>
       <div className="deal-actions">
-        {quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && <form action={sendToCustomer}><input type="hidden" name="quoteCode" value={quote.code}/><Button>Send to customer</Button></form>}
-        {quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && <form action={confirmOnBehalf}><input type="hidden" name="quoteCode" value={quote.code}/><input type="hidden" name="revisionId" value={quote.currentRevision.id}/><Button variant="outline">Confirm on behalf</Button></form>}
-        {quote.currentRevision.createdVia === "PORTAL" && <form action={acceptCounter}><input type="hidden" name="quoteCode" value={quote.code}/><Button variant="secondary">Accept counter</Button></form>}
+        {quote.approvalStatus === "APPROVED" && quote.customerStatus === "SENT" && <Button type="button" variant="outline" disabled>Sent to customer</Button>}
+        {quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && quote.customerStatus !== "SENT" && <form action={sendToCustomer}><input type="hidden" name="quoteCode" value={quote.code}/><SubmitButton pendingLabel="Sending…">Send to customer</SubmitButton></form>}
+        {quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && <form action={confirmOnBehalf}><input type="hidden" name="quoteCode" value={quote.code}/><input type="hidden" name="revisionId" value={quote.currentRevision.id}/><Button type="submit" variant="outline">Confirm on behalf</Button></form>}
+        {quote.currentRevision.createdVia === "PORTAL" && <form action={acceptCounter}><input type="hidden" name="quoteCode" value={quote.code}/><Button type="submit" variant="secondary">Accept counter</Button></form>}
         {quote.orders[0] && <Link className={buttonVariants({ variant: "outline" })} href={`/app/fulfillment/${quote.orders[0].code}`}>Open {quote.orders[0].code}</Link>}
       </div>
       <QuoteBuilder quote={safeQuote} products={data.products} policy={data.policy} pairings={data.pairings} stock={data.stock} warehouses={data.warehouses} previewDate={previewDate} canEdit={canEdit}/>
@@ -64,7 +66,7 @@ export default async function QuotePage({
 
     {tab === "timeline" && <Card><CardHeader><CardTitle>Deal timeline</CardTitle><CardDescription>Complete audit history across revisions and decisions.</CardDescription></CardHeader><CardContent><DealTimeline events={timeline}/></CardContent></Card>}
 
-    {tab === "messages" && <Card><CardHeader><CardTitle>Messages</CardTitle><CardDescription>Customer collaboration tied to this quotation.</CardDescription></CardHeader><CardContent><MessageThread messages={quote.messages}/><form className="message-compose"><input type="hidden" name="quoteCode" value={quote.code}/><Textarea name="text" required placeholder="Reply to the customer"/><div className="message-buttons"><Button size="sm" formAction={postMessage}>Send reply</Button>{canEdit && <Button variant="outline" size="sm" formAction={replyAndRevise}>Reply and create revision</Button>}</div></form></CardContent></Card>}
+    {tab === "messages" && <Card><CardHeader><CardTitle>Messages</CardTitle><CardDescription>Customer collaboration tied to this quotation.</CardDescription></CardHeader><CardContent><MessageThread messages={quote.messages}/><form className="message-compose"><input type="hidden" name="quoteCode" value={quote.code}/><Textarea name="text" required placeholder="Reply to the customer"/><div className="message-buttons"><Button type="submit" size="sm" formAction={postMessage}>Send reply</Button>{canEdit && <Button type="submit" variant="outline" size="sm" formAction={replyAndRevise}>Reply and create revision</Button>}</div></form></CardContent></Card>}
 
     {tab === "fulfillment" && <Card><CardHeader><CardTitle>Live warehouse outcome</CardTitle><CardDescription>Preview only. Stock is reserved after confirmation.</CardDescription></CardHeader><CardContent>{fulfillment && <SplitPlanTable plan={fulfillment}/>}</CardContent></Card>}
 

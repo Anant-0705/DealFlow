@@ -1,6 +1,6 @@
 "use server";
 
-import { compare, hash } from "bcryptjs";
+import { compare } from "bcryptjs";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -14,10 +14,6 @@ const credentialsSchema = z.object({
   email: z.email().trim().max(254).transform((value) => value.toLowerCase()),
   password: z.string().min(8).max(72),
   next: z.string().optional(),
-});
-
-const signupSchema = credentialsSchema.extend({
-  name: z.string().trim().min(2).max(80).regex(/^[\p{L}\p{M}\p{N} .'-]+$/u, "Enter a valid name"),
 });
 
 function failLogin(next?: string): never {
@@ -50,33 +46,6 @@ export async function login(formData: FormData) {
     customerId: user.customerId,
   });
   redirect(destinationFor(user.role, parsed.data.next));
-}
-
-export async function signup(formData: FormData) {
-  const existing = await getSession();
-  if (existing) redirect(destinationFor(existing.role, undefined));
-
-  const parsed = signupSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) redirect("/signup?error=Check+your+name,+email,+and+password");
-
-  const duplicate = await prisma.user.findUnique({ where: { email: parsed.data.email }, select: { id: true } });
-  if (duplicate) redirect("/signup?error=An+account+already+uses+that+email");
-
-  try {
-    const user = await prisma.user.create({
-      data: {
-        name: parsed.data.name,
-        email: parsed.data.email,
-        passwordHash: await hash(parsed.data.password, 12),
-        role: "REP",
-      },
-      select: { id: true, role: true, name: true, customerId: true },
-    });
-    await setSession({ userId: user.id, role: user.role, name: user.name, customerId: user.customerId });
-  } catch {
-    redirect("/signup?error=An+account+already+uses+that+email");
-  }
-  redirect("/app/dashboard");
 }
 
 export async function logout() {

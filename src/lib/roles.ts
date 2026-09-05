@@ -5,6 +5,7 @@ export const USER_ROLES = ["REP", "MANAGER", "FINANCE", "ADMIN", "CUSTOMER"] as 
 export const INTERNAL_ROLES = ["REP", "MANAGER", "FINANCE", "ADMIN"] as const satisfies readonly UserRole[];
 export const APPROVER_ROLES = ["MANAGER", "FINANCE", "ADMIN"] as const satisfies readonly UserRole[];
 export const SETTINGS_ROLES = ["ADMIN", "MANAGER"] as const satisfies readonly UserRole[];
+export const CUSTOMER_MANAGER_ROLES = ["ADMIN", "MANAGER"] as const satisfies readonly UserRole[];
 export const QUOTE_EDITOR_ROLES = ["REP", "ADMIN"] as const satisfies readonly UserRole[];
 
 export type InternalRole = (typeof INTERNAL_ROLES)[number];

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { login } from "@/modules/identity/actions";
 import { safeNextPath } from "@/lib/roles";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -21,7 +20,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </div>
         </div>
         <CardTitle>Sign in to your workspace</CardTitle>
-        <CardDescription>Use your internal or customer credentials. Sessions are signed and re-checked against the database on every request.</CardDescription>
+        <CardDescription>Use credentials created by your workspace administrator or from a customer invitation. Sessions are signed and re-checked against the database on every request.</CardDescription>
       </CardHeader>
       <CardContent>
         {error && (
@@ -43,7 +42,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               <FieldDescription>Minimum eight characters.</FieldDescription>
             </Field>
           </FieldGroup>
-          <Button size="lg">Sign in</Button>
+          <Button type="submit" size="lg">Sign in</Button>
         </form>
         <div className="demo-credentials">
           <strong>Demo access</strong>
@@ -53,7 +52,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </div>
       </CardContent>
       <CardFooter>
-        <p className="auth-foot">New sales rep? <Link href="/signup">Create an account</Link></p>
+        <p className="auth-foot">Customer access is invitation-only.</p>
       </CardFooter>
     </Card>
   );

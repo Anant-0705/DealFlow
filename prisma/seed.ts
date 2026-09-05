@@ -112,13 +112,13 @@ export async function seedDatabase(db: Prisma.TransactionClient) {
     db.warehouse.create({ data: { name: "East Depot", code: "EAST", shippingCostWeightPaise: 25_000, replenishmentLeadDays: 5 } }),
   ]);
   await db.stock.createMany({ data: [
-    { warehouseId: mainWarehouse.id, productId: laptop.id, variantId: laptop16.id, onHand: 3, reserved: 0 },
-    { warehouseId: eastDepot.id, productId: laptop.id, variantId: laptop16.id, onHand: 2, reserved: 0 },
-    { warehouseId: mainWarehouse.id, productId: laptop.id, variantId: laptop32.id, onHand: 10, reserved: 0 },
-    { warehouseId: mainWarehouse.id, productId: dock.id, onHand: 40, reserved: 4 },
-    { warehouseId: eastDepot.id, productId: dock.id, onHand: 15, reserved: 0 },
-    { warehouseId: mainWarehouse.id, productId: mouse.id, onHand: 200, reserved: 12 },
-    { warehouseId: eastDepot.id, productId: monitor.id, onHand: 12, reserved: 0 },
+    { warehouseId: mainWarehouse.id, productId: laptop.id, variantId: laptop16.id, onHand: 3, reserved: 0, reorderPoint: 2, reorderQty: 10, maxOnHand: 20 },
+    { warehouseId: eastDepot.id, productId: laptop.id, variantId: laptop16.id, onHand: 2, reserved: 0, reorderPoint: 2, reorderQty: 10, maxOnHand: 20 },
+    { warehouseId: mainWarehouse.id, productId: laptop.id, variantId: laptop32.id, onHand: 10, reserved: 0, reorderPoint: 4, reorderQty: 8, maxOnHand: 24 },
+    { warehouseId: mainWarehouse.id, productId: dock.id, onHand: 40, reserved: 4, reorderPoint: 10, reorderQty: 20, maxOnHand: 80 },
+    { warehouseId: eastDepot.id, productId: dock.id, onHand: 15, reserved: 0, reorderPoint: 8, reorderQty: 15, maxOnHand: 40 },
+    { warehouseId: mainWarehouse.id, productId: mouse.id, onHand: 200, reserved: 12, reorderPoint: 50, reorderQty: 100, maxOnHand: 400 },
+    { warehouseId: eastDepot.id, productId: monitor.id, onHand: 12, reserved: 0, reorderPoint: 6, reorderQty: 12, maxOnHand: 30 },
   ] });
   await db.stockReceipt.create({ data: { warehouseId: eastDepot.id, productId: laptop.id, variantId: laptop16.id, qty: 10, expectedAt: daysFromNow(4) } });
   await db.productPairing.createMany({ data: [

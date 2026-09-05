@@ -34,7 +34,7 @@ function planFor(order: Awaited<ReturnType<typeof loadOrderForPlan>>, stock: Awa
   );
 }
 
-const loadPlanWarehouses = () => prisma.warehouse.findMany({ where: { active: true }, select: { id: true, name: true, shippingCostWeightPaise: true } });
+const loadPlanWarehouses = () => prisma.warehouse.findMany({ where: { active: true }, select: { id: true, name: true, shippingCostWeightPaise: true, replenishmentLeadDays: true } });
 const loadPlanStock = () => prisma.stock.findMany({ select: { warehouseId: true, productId: true, variantId: true, onHand: true, reserved: true } });
 const loadOrderForPlan = (code: string) => prisma.order.findUnique({ where: { code }, include: { quote: { include: { customer: true } }, lines: { include: { product: { include: { category: true } }, variant: true, allocations: { include: { warehouse: true } }, backorders: true } } } });
 

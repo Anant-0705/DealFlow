@@ -22,4 +22,21 @@ describe("allocateInventory", () => {
   it("backorders everything with no stock", () => expect(allocateInventory([request], stock(0, 0), warehouses).lines[0].backorderQty).toBe(6));
   it("skips non-stock lines", () => expect(allocateInventory([{ ...request, requiresStock: false }], stock(3, 2), warehouses).lines[0].backorderQty).toBe(0));
   it("counts a shared warehouse once across lines", () => expect(allocateInventory([request, { ...request, lineId: 2, productId: 11, qty: 1 }], [...stock(6, 0), { warehouseId: 1, productId: 11, onHand: 1, reserved: 0 }], warehouses).totalShipments).toBe(1));
+  it("minimizes shipments for the whole order, not each line", () => {
+    const plan = allocateInventory(
+      [
+        { lineId: 1, productId: 10, variantId: 20, description: "Laptop", qty: 1 },
+        { lineId: 2, productId: 11, description: "Dock", qty: 1 },
+      ],
+      [
+        { warehouseId: 1, productId: 10, variantId: 20, onHand: 1, reserved: 0 },
+        { warehouseId: 2, productId: 10, variantId: 20, onHand: 1, reserved: 0 },
+        { warehouseId: 2, productId: 11, onHand: 1, reserved: 0 },
+      ],
+      warehouses,
+    );
+    expect(plan.totalShipments).toBe(1);
+    expect(plan.totalEstimatedCostPaise).toBe(25_000);
+    expect(plan.lines.flatMap((line) => line.allocations.map((row) => row.warehouseId))).toEqual([2, 2]);
+  });
 });

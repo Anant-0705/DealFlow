@@ -4,9 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { logEvent } from "@/lib/audit";
 import { formObject } from "@/lib/validation";
-import { receiptSchema, stockSchema, warehouseSchema } from "./schemas";
+import { receiptSchema, scheduleReceiptSchema, stockSchema, warehouseSchema } from "./schemas";
 import { reserveSuggestedAllocations, lockProductStock } from "./reserve";
 import { findConsolidatableBackorders } from "./receipts";
+import { promisedDeliveryDate } from "./promise";
+import { fulfillmentStatusForLines, orderAlreadyPlanned } from "./fulfillment-status";
 
 async function requireMatchingVariant(tx: Parameters<typeof logEvent>[0], productId: number, variantId: number | null) {
   if (variantId === null) return;
@@ -29,17 +31,23 @@ export async function saveStock(formData: FormData) {
     if (existing && value.onHand < existing.reserved) {
       throw new Error(`On-hand stock cannot be lower than the ${existing.reserved} units already reserved.`);
     }
-    const row = existing ? await tx.stock.update({ where: { id: existing.id }, data: { onHand: value.onHand } }) : await tx.stock.create({ data: { ...value, reserved: 0 } });
-    await logEvent(tx, { entity: "STOCK", entityId: row.id, action: "SETTINGS_CHANGED", actorId: session.userId, reason: "On-hand stock updated", meta: { onHand: value.onHand } });
+    const replenishment = { reorderPoint: value.reorderPoint, reorderQty: value.reorderQty, maxOnHand: value.maxOnHand };
+    const row = existing
+      ? await tx.stock.update({ where: { id: existing.id }, data: { onHand: value.onHand, ...replenishment } })
+      : await tx.stock.create({ data: { warehouseId: value.warehouseId, productId: value.productId, variantId: value.variantId, onHand: value.onHand, reserved: 0, ...replenishment } });
+    await logEvent(tx, { entity: "STOCK", entityId: row.id, action: "SETTINGS_CHANGED", actorId: session.userId, reason: "On-hand stock updated", meta: { onHand: value.onHand, ...replenishment } });
   });
   revalidatePath("/app/settings/warehouses");
 }
 
 async function updateFulfillmentStatus(tx: Parameters<typeof logEvent>[0], orderId: number) {
-  const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, include: { lines: { include: { backorders: true } } } });
-  const hasOpen = order.lines.some((line) => line.backorders.some((backorder) => !backorder.consolidatedAt && backorder.qty > 0));
-  await tx.quote.update({ where: { id: order.quoteId }, data: { fulfillmentStatus: hasOpen ? "PARTIAL" : "FULFILLED", lastActivityAt: new Date() } });
-  return hasOpen ? "PARTIAL" as const : "FULFILLED" as const;
+  const order = await tx.order.findUniqueOrThrow({
+    where: { id: orderId },
+    include: { lines: { include: { allocations: true, backorders: true, product: { include: { category: true } } } } },
+  });
+  const status = fulfillmentStatusForLines(order.lines);
+  await tx.quote.update({ where: { id: order.quoteId }, data: { fulfillmentStatus: status, lastActivityAt: new Date() } });
+  return status;
 }
 
 export async function acceptSuggestedSplit(formData: FormData) {
@@ -48,6 +56,11 @@ export async function acceptSuggestedSplit(formData: FormData) {
   const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({ where: { code: orderCode } });
     const plan = await reserveSuggestedAllocations(tx, order.id);
+    const [warehouses, receipts] = await Promise.all([
+      tx.warehouse.findMany({ where: { active: true }, select: { id: true, name: true, shippingCostWeightPaise: true, replenishmentLeadDays: true } }),
+      tx.stockReceipt.findMany({ where: { receivedAt: null }, select: { productId: true, variantId: true, qty: true, expectedAt: true, receivedAt: true } }),
+    ]);
+    await tx.order.update({ where: { id: order.id }, data: { promisedDeliveryDate: promisedDeliveryDate({ confirmedAt: order.confirmedAt, plan, warehouses, receipts }) } });
     const status = await updateFulfillmentStatus(tx, order.id);
     await logEvent(tx, { entity: "ORDER", entityId: order.id, quoteId: order.quoteId, action: "SPLIT_ACCEPTED", actorId: session.userId, reason: `${plan.totalShipments} shipment plan accepted; fulfillment is ${status.toLowerCase()}.`, meta: JSON.parse(JSON.stringify(plan)) });
     return plan;
@@ -62,8 +75,8 @@ export async function manualOverride(formData: FormData) {
   const orderCode = String(formData.get("orderCode") ?? "");
   await prisma.$transaction(async (tx) => {
     await tx.$queryRawUnsafe<Array<{ id: number }>>('SELECT "id" FROM "Order" WHERE "code" = $1 FOR UPDATE', orderCode);
-    const order = await tx.order.findUniqueOrThrow({ where: { code: orderCode }, include: { lines: { include: { allocations: true, product: { include: { category: true } } } } } });
-    if (order.lines.some((line) => line.allocations.length)) throw new Error("This order already has reserved allocations.");
+    const order = await tx.order.findUniqueOrThrow({ where: { code: orderCode }, include: { lines: { include: { allocations: true, backorders: true, product: { include: { category: true } } } } } });
+    if (orderAlreadyPlanned(order.lines)) throw new Error("This order already has a fulfillment plan.");
     for (const productId of [...new Set(order.lines.map((line) => line.productId))]) await lockProductStock(tx, productId);
     const before = await tx.stock.findMany({ where: { productId: { in: order.lines.map((line) => line.productId) } } });
     const remaining = new Map(before.map((item) => [item.id, Math.max(0, item.onHand - item.reserved)]));
@@ -100,6 +113,26 @@ export async function manualOverride(formData: FormData) {
   revalidatePath("/app/fulfillment");
 }
 
+export async function scheduleStockReceipt(formData: FormData) {
+  const session = await requireRole(["FINANCE", "ADMIN"]);
+  const value = scheduleReceiptSchema.parse({
+    warehouseId: formData.get("warehouseId"),
+    productId: formData.get("productId"),
+    variantId: formData.get("variantId"),
+    qty: formData.get("qty"),
+    expectedAt: formData.get("expectedAt"),
+  });
+  await prisma.$transaction(async (tx) => {
+    await requireMatchingVariant(tx, value.productId, value.variantId);
+    const receipt = await tx.stockReceipt.create({ data: { warehouseId: value.warehouseId, productId: value.productId, variantId: value.variantId, qty: value.qty, expectedAt: value.expectedAt } });
+    await logEvent(tx, { entity: "STOCK", entityId: receipt.id, action: "REPLENISHMENT_SCHEDULED", actorId: session.userId, reason: `${value.qty} units scheduled for ${value.expectedAt.toISOString().slice(0, 10)}.`, meta: value });
+  });
+  revalidatePath("/app/fulfillment");
+  revalidatePath("/app/settings/warehouses");
+  revalidatePath("/app/deal-health");
+  revalidatePath("/app/dashboard");
+}
+
 export async function recordStockReceipt(formData: FormData) {
   const session = await requireRole(["FINANCE", "ADMIN"]);
   const value = receiptSchema.parse({ warehouseId: formData.get("warehouseId"), productId: formData.get("productId"), variantId: formData.get("variantId"), qty: formData.get("qty"), receiptId: formData.get("receiptId") });
@@ -126,6 +159,8 @@ export async function recordStockReceipt(formData: FormData) {
   }, { isolationLevel: "Serializable" });
   for (const code of orderCodes) revalidatePath(`/app/fulfillment/${code}`);
   revalidatePath("/app/fulfillment");
+  revalidatePath("/app/deal-health");
+  revalidatePath("/app/dashboard");
 }
 
 export async function consolidateBackorder(formData: FormData) {
@@ -157,14 +192,17 @@ export async function markShipped(formData: FormData) {
   const allocationId = Number(formData.get("allocationId"));
   const orderCode = String(formData.get("orderCode") ?? "");
   await prisma.$transaction(async (tx) => {
+    await tx.$queryRawUnsafe<Array<{ id: number }>>('SELECT "id" FROM "Allocation" WHERE "id" = $1 FOR UPDATE', allocationId);
     const allocation = await tx.allocation.findUniqueOrThrow({ where: { id: allocationId }, include: { orderLine: { include: { order: true } } } });
     if (allocation.shippedAt) return;
     await lockProductStock(tx, allocation.orderLine.productId);
     const stock = await tx.stock.findFirstOrThrow({ where: { warehouseId: allocation.warehouseId, productId: allocation.orderLine.productId, variantId: allocation.orderLine.variantId } });
     await tx.stock.update({ where: { id: stock.id }, data: { onHand: { decrement: allocation.qty }, reserved: { decrement: allocation.qty } } });
     await tx.allocation.update({ where: { id: allocation.id }, data: { shippedAt: new Date(), reserved: false } });
-    await logEvent(tx, { entity: "ALLOCATION", entityId: allocation.id, quoteId: allocation.orderLine.order.quoteId, action: "SHIPPED", actorId: session.userId, reason: `${allocation.qty} unit${allocation.qty === 1 ? "" : "s"} shipped.` });
-  });
+    const status = await updateFulfillmentStatus(tx, allocation.orderLine.orderId);
+    await logEvent(tx, { entity: "ALLOCATION", entityId: allocation.id, quoteId: allocation.orderLine.order.quoteId, action: "SHIPPED", actorId: session.userId, reason: `${allocation.qty} unit${allocation.qty === 1 ? "" : "s"} shipped; fulfillment is ${status.toLowerCase()}.` });
+  }, { isolationLevel: "Serializable" });
   revalidatePath(`/app/fulfillment/${orderCode}`);
+  revalidatePath("/app/fulfillment");
   revalidatePath(`/app/invoices`);
 }

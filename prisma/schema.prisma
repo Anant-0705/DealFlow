@@ -123,7 +123,10 @@ enum AuditAction {
   SHIPPED
   SUBSCRIPTION_MODIFIED
   SUBSCRIPTION_CANCELLED
+  SUBSCRIPTION_PAUSED
+  SUBSCRIPTION_RESUMED
   BILLING_RUN
+  REPLENISHMENT_SCHEDULED
   CREDIT_NOTE_ISSUED
   PAYMENT_RECORDED
   NUDGE_SENT
@@ -155,6 +158,12 @@ enum InvoiceStatus {
   PARTIAL
   PAID
   CREDITED
+}
+
+enum BillingPeriodStatus {
+  SCHEDULED
+  INVOICED
+  SKIPPED
 }
 
 model User {
@@ -367,17 +376,20 @@ model Warehouse {
 }
 
 model Stock {
-  id          Int             @id @default(autoincrement())
-  warehouseId Int
-  warehouse   Warehouse       @relation(fields: [warehouseId], references: [id])
-  productId   Int
-  product     Product         @relation(fields: [productId], references: [id])
-  variantId   Int?
-  variant     ProductVariant? @relation(fields: [variantId], references: [id])
-  onHand      Int
-  reserved    Int             @default(0)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id            Int             @id @default(autoincrement())
+  warehouseId   Int
+  warehouse     Warehouse       @relation(fields: [warehouseId], references: [id])
+  productId     Int
+  product       Product         @relation(fields: [productId], references: [id])
+  variantId     Int?
+  variant       ProductVariant? @relation(fields: [variantId], references: [id])
+  onHand        Int
+  reserved      Int             @default(0)
+  reorderPoint  Int             @default(0)
+  reorderQty    Int             @default(0)
+  maxOnHand     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   @@unique([warehouseId, productId, variantId])
   @@index([warehouseId])
@@ -683,8 +695,10 @@ model Subscription {
   unitPricePaise Int
   startsAt       DateTime
   nextBillingAt  DateTime
+  pausedAt       DateTime?
   status         SubscriptionStatus   @default(ACTIVE)
   changes        SubscriptionChange[]
+  billingPeriods BillingPeriod[]
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 
@@ -707,6 +721,28 @@ model SubscriptionChange {
   @@index([subscriptionId])
 }
 
+model BillingPeriod {
+  id             Int                 @id @default(autoincrement())
+  subscriptionId Int
+  subscription   Subscription        @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  periodStart    DateTime
+  periodEnd      DateTime
+  qty            Int
+  unitPricePaise Int
+  amountPaise    Int
+  taxPaise       Int
+  status         BillingPeriodStatus @default(SCHEDULED)
+  invoiceId      Int?
+  invoice        Invoice?            @relation(fields: [invoiceId], references: [id])
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@unique([subscriptionId, periodStart])
+  @@index([subscriptionId])
+  @@index([invoiceId])
+  @@index([status])
+}
+
 model Invoice {
   id          Int           @id @default(autoincrement())
   code        String        @unique
@@ -724,6 +760,7 @@ model Invoice {
   payments         Payment[]
   paymentSessions  PaymentSession[]
   creditNotes      CreditNote[]
+  billingPeriods   BillingPeriod[]
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 

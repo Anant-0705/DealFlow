@@ -43,7 +43,7 @@ export async function getBuilderData() {
     prisma.discountPolicy.findUniqueOrThrow({ where: { id: 1 } }),
     prisma.productPairing.findMany({ where: { active: true, suggestedProduct: { active: true } }, include: { suggestedProduct: { include: { category: true, variants: true, plan: true } } } }),
     prisma.stock.findMany({ select: { warehouseId: true, productId: true, variantId: true, onHand: true, reserved: true } }),
-    prisma.warehouse.findMany({ where: { active: true }, select: { id: true, name: true, shippingCostWeightPaise: true } }),
+    prisma.warehouse.findMany({ where: { active: true }, select: { id: true, name: true, shippingCostWeightPaise: true, replenishmentLeadDays: true } }),
     confirmedDealLines(),
   ]);
   return { customers, products, policy, pairings: withCoPurchaseCounts(pairings, dealLines), stock, warehouses };

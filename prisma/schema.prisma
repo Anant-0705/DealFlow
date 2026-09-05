@@ -26,6 +26,11 @@ enum PriceRule {
   PERCENT_OFF
 }
 
+enum OfferKind {
+  UPSELL
+  CROSS_SELL
+}
+
 enum BillingInterval {
   MONTHLY
   QUARTERLY
@@ -100,6 +105,8 @@ enum AuditAction {
   REVISED
   UPSELL_ADDED
   UPSELL_DISMISSED
+  CROSS_SELL_ADDED
+  CROSS_SELL_DISMISSED
   SETTINGS_CHANGED
   PORTAL_MESSAGE
   COUNTER_PROPOSED
@@ -356,18 +363,21 @@ model StockReceipt {
 }
 
 model ProductPairing {
-  id                 Int      @id @default(autoincrement())
+  id                 Int       @id @default(autoincrement())
   productId          Int
-  product            Product  @relation("PairingSource", fields: [productId], references: [id], onDelete: Cascade)
+  product            Product   @relation("PairingSource", fields: [productId], references: [id], onDelete: Cascade)
   suggestedProductId Int
-  suggestedProduct   Product  @relation("PairingTarget", fields: [suggestedProductId], references: [id], onDelete: Cascade)
+  suggestedProduct   Product   @relation("PairingTarget", fields: [suggestedProductId], references: [id], onDelete: Cascade)
+  kind               OfferKind
   weight             Int
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  active             Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@unique([productId, suggestedProductId])
   @@index([productId])
   @@index([suggestedProductId])
+  @@index([kind])
 }
 
 model Quote {

@@ -100,12 +100,13 @@ export async function seedDatabase(db: Prisma.TransactionClient) {
   ] });
   await db.stockReceipt.create({ data: { warehouseId: eastDepot.id, productId: laptop.id, variantId: laptop16.id, qty: 10, expectedAt: daysFromNow(4) } });
   await db.productPairing.createMany({ data: [
-    { productId: laptop.id, suggestedProductId: dock.id, weight: 10 },
-    { productId: laptop.id, suggestedProductId: setup.id, weight: 8 },
-    { productId: laptop.id, suggestedProductId: care.id, weight: 7 },
-    { productId: setup.id, suggestedProductId: care.id, weight: 6 },
-    { productId: monitor.id, suggestedProductId: dock.id, weight: 5 },
-    { productId: laptop.id, suggestedProductId: mouse.id, weight: 4 },
+    { productId: laptop.id, suggestedProductId: dock.id, kind: "CROSS_SELL", weight: 10 },
+    { productId: laptop.id, suggestedProductId: setup.id, kind: "UPSELL", weight: 8 },
+    { productId: laptop.id, suggestedProductId: care.id, kind: "UPSELL", weight: 7 },
+    { productId: laptop.id, suggestedProductId: warranty.id, kind: "UPSELL", weight: 5 },
+    { productId: setup.id, suggestedProductId: care.id, kind: "UPSELL", weight: 6 },
+    { productId: monitor.id, suggestedProductId: dock.id, kind: "CROSS_SELL", weight: 5 },
+    { productId: laptop.id, suggestedProductId: mouse.id, kind: "CROSS_SELL", weight: 4 },
   ] });
 
   const categories = new Map([[hardware.id, hardware], [services.id, services], [subscription.id, subscription]]);
@@ -144,8 +145,11 @@ export async function seedDatabase(db: Prisma.TransactionClient) {
     const primary = [laptop, dock, monitor, warranty][i % 4];
     const discountBps = owner.id === ravi.id ? 500 + (i % 3) * 100 : 1100 + (i % 4) * 100;
     const confirmedAt = daysAgo(4 + i * 3);
-    const { quote, revision } = await createQuote({ code: `Q-${1000 + i}`, customer, owner, approvalStatus: "APPROVED", customerStatus: "CONFIRMED", products: [{ product: primary, qty: 1 + (i % 3), discountBps }], activityAt: confirmedAt });
-    const quoteLine = await db.quoteLine.findFirstOrThrow({ where: { revisionId: revision.id } });
+    const products = [{ product: primary, qty: 1 + (i % 3), discountBps, variantId: primary.id === laptop.id ? laptop16.id : null }];
+    if (primary.id === laptop.id && i % 2 === 0) products.push({ product: dock, qty: 1, discountBps: 0, variantId: null });
+    if (primary.id === laptop.id && i % 3 === 0) products.push({ product: care, qty: 1, discountBps: 0, variantId: null });
+    const { quote, revision } = await createQuote({ code: `Q-${1000 + i}`, customer, owner, approvalStatus: "APPROVED", customerStatus: "CONFIRMED", products, activityAt: confirmedAt });
+    const quoteLines = await db.quoteLine.findMany({ where: { revisionId: revision.id } });
     const submittedAt = new Date(confirmedAt.getTime() - 2 * 3_600_000);
     const approvedAt = new Date(confirmedAt.getTime() - 3_600_000);
     await db.quoteRevision.update({ where: { id: revision.id }, data: { submittedAt } });
@@ -153,7 +157,7 @@ export async function seedDatabase(db: Prisma.TransactionClient) {
       { entity: "REVISION", entityId: revision.id, quoteId: quote.id, action: "SUBMITTED", actorId: owner.id, reason: "Historical demo submission", at: submittedAt },
       { entity: "REVISION", entityId: revision.id, quoteId: quote.id, action: "AUTO_APPROVED", actorId: owner.id, reason: "Historical demo approval", at: approvedAt },
     ] });
-    const order = await db.order.create({ data: { code: `SO-${1000 + i}`, quoteId: quote.id, revisionId: revision.id, confirmedAt, lines: { create: { quoteLineId: quoteLine.id, productId: quoteLine.productId, variantId: quoteLine.variantId, qty: quoteLine.qty, unitPricePaise: quoteLine.unitPricePaise } } } });
+    const order = await db.order.create({ data: { code: `SO-${1000 + i}`, quoteId: quote.id, revisionId: revision.id, confirmedAt, lines: { create: quoteLines.map((line) => ({ quoteLineId: line.id, productId: line.productId, variantId: line.variantId, qty: line.qty, unitPricePaise: line.unitPricePaise })) } } });
     if (i < 12) await db.invoice.create({ data: { code: `INV-${1000 + i}`, orderId: order.id, kind: "ONE_TIME", totalPaise: revision.totalPaise, paidPaise: i % 2 ? revision.totalPaise : 0, status: i % 2 ? "PAID" : "UNPAID", issuedAt: daysAgo(3 + i * 3), dueAt: daysFromNow(14 - i) } });
   }
 

@@ -1,5 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { confirmedDealLines } from "@/modules/upsell/queries";
+import { withCoPurchaseCounts } from "@/modules/upsell/suggest";
 
 export function listQuotes(ownerId?: number) {
   return prisma.quote.findMany({ where: ownerId ? { ownerId } : undefined, include: { customer: true, owner: true, currentRevision: true }, orderBy: { lastActivityAt: "desc" } });
@@ -19,13 +21,14 @@ export function getQuoteDetail(code: string) {
 export const listForKanban = listQuotes;
 
 export async function getBuilderData() {
-  const [customers, products, policy, pairings, stock, warehouses] = await Promise.all([
+  const [customers, products, policy, pairings, stock, warehouses, dealLines] = await Promise.all([
     prisma.customer.findMany({ orderBy: { name: "asc" } }),
     prisma.product.findMany({ where: { active: true }, include: { category: true, variants: true, plan: true }, orderBy: [{ category: { name: "asc" } }, { name: "asc" }] }),
     prisma.discountPolicy.findUniqueOrThrow({ where: { id: 1 } }),
-    prisma.productPairing.findMany({ include: { suggestedProduct: { include: { category: true, variants: true, plan: true } } } }),
+    prisma.productPairing.findMany({ where: { active: true, suggestedProduct: { active: true } }, include: { suggestedProduct: { include: { category: true, variants: true, plan: true } } } }),
     prisma.stock.findMany({ select: { warehouseId: true, productId: true, variantId: true, onHand: true, reserved: true } }),
     prisma.warehouse.findMany({ where: { active: true }, select: { id: true, name: true, shippingCostWeightPaise: true } }),
+    confirmedDealLines(),
   ]);
-  return { customers, products, policy, pairings, stock, warehouses };
+  return { customers, products, policy, pairings: withCoPurchaseCounts(pairings, dealLines), stock, warehouses };
 }

@@ -1,5 +1,9 @@
-import Link from "next/link";
 import { requirePageRole } from "@/lib/auth";
 import { SETTINGS_ROLES } from "@/lib/roles";
-const tabs = [["Customers", "/app/settings/customers"], ["Products", "/app/settings/products"], ["Price lists", "/app/settings/pricing"], ["Policy", "/app/settings/policy"], ["Warehouses", "/app/settings/warehouses"], ["Plans", "/app/settings/plans"], ["Offers", "/app/settings/upsell"], ["System", "/app/settings/system"]];
-export default async function SettingsLayout({ children }: { children: React.ReactNode }) { const session = await requirePageRole(SETTINGS_ROLES); return <div><div className="page-header"><div><div className="eyebrow">Back-end configuration</div><h1>Settings</h1><p>Stored rules drive every calculation and approval decision.</p></div></div><nav className="settings-tabs">{tabs.filter(([label]) => label !== "System" || session.role === "ADMIN").map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}</nav>{children}</div>; }
+import { PageHeader } from "@/components/layout/PageHeader";
+import { SettingsNav } from "@/components/layout/SettingsNav";
+
+export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
+  await requirePageRole(SETTINGS_ROLES);
+  return <div><PageHeader eyebrow="Administration" title="Settings" description="Stored rules drive every calculation and approval decision."/><div className="settings-workspace"><SettingsNav/><section className="settings-content">{children}</section></div></div>;
+}

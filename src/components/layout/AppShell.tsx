@@ -1,0 +1,4 @@
+import { SideNav } from "./SideNav";
+import { TopMenu } from "./TopMenu";
+import type { AppSession } from "@/lib/auth";
+export function AppShell({ session, pendingCount, children }: { session: AppSession; pendingCount: number; children: React.ReactNode }) { const roleLabel = { REP: "Sales Rep", MANAGER: "Sales Manager", FINANCE: "Finance", ADMIN: "Administrator", CUSTOMER: "Customer" }[session.role]; return <div className="app-shell"><SideNav pendingCount={pendingCount}/><div className="app-main"><header className="topbar"><TopMenu canConfigure={["ADMIN", "MANAGER"].includes(session.role)}/><div className="identity"><span>{session.name.split(" ").map((part) => part[0]).slice(0,2).join("")}</span><div><strong>{session.name}</strong><small>{roleLabel}</small></div></div></header><main className="page-content">{children}</main></div></div>; }

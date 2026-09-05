@@ -1,0 +1,3 @@
+import type { EvaluationResult } from "@/modules/pricing/types";
+import { ReasonList } from "@/components/shared/ReasonList";
+export function DecisionPanel({ evaluation }: { evaluation: EvaluationResult }) { const label = evaluation.requiredLevel === "FINANCE" ? "Sales Manager → Finance" : evaluation.requiredLevel === "MANAGER" ? "Sales Manager" : "Auto-approved"; return <section className={`panel decision-panel ${evaluation.requiredLevel.toLowerCase()}`}><div className="panel-heading"><div><span className="eyebrow">What happens on submit</span><h2>{label}</h2></div><span className={`risk-orb ${evaluation.requiredLevel.toLowerCase()}`}/></div><ReasonList reasons={evaluation.reasons}/></section>; }

@@ -1,0 +1,2 @@
+const tones: Record<string, string> = { APPROVED: "badge success", PAID: "badge success", PENDING: "badge warning", FINANCE: "badge danger", MANAGER: "badge warning", REJECTED: "badge danger", STALE: "badge muted", DRAFT: "badge muted", NONE: "badge muted", SENT: "badge info", CONFIRMED: "badge success" };
+export function StatusBadge({ status }: { status: string }) { return <span className={tones[status] ?? "badge info"}>{status.replaceAll("_", " ")}</span>; }

@@ -1,5 +1,9 @@
 import { requireCustomer } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { Money } from "@/components/shared/Money";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-export default async function PortalPage() { const session = await requireCustomer(); const quotes = await prisma.quote.findMany({ where: { customerId: session.customerId }, include: { customer: true, currentRevision: true }, orderBy: { lastActivityAt: "desc" } }); return <div className="portal-page"><div className="eyebrow">Customer portal · Phase 1 foundation</div><h1>Your quotations</h1><p className="muted">The restricted portal route and live quotation records are ready. Negotiation controls arrive in Phase 2.</p><div className="card-grid">{quotes.map((quote) => <article className="card" key={quote.id}><div className="split"><strong>{quote.code}</strong><StatusBadge status={quote.customerStatus}/></div><h2>{quote.customer.name}</h2><Money value={quote.currentRevision?.totalPaise ?? 0} className="metric"/></article>)}</div></div>; }
+import { PortalQuoteList } from "@/components/portal/PortalQuoteList";
+import { listPortalQuotes } from "@/modules/negotiation/queries";
+
+export default async function PortalPage() {
+  const session = await requireCustomer();
+  const quotes = await listPortalQuotes(session.customerId);
+  return <div className="portal-page"><div className="eyebrow">Customer portal</div><h1>My quotations</h1><p className="muted">Review live terms, request changes, and confirm the latest approved revision.</p><PortalQuoteList quotes={quotes}/></div>;
+}

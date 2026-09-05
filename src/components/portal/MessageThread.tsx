@@ -1,0 +1,10 @@
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Bubble, BubbleContent } from "@/components/ui/bubble";
+import { Message, MessageAvatar, MessageContent, MessageFooter, MessageHeader } from "@/components/ui/message";
+import { MessageScroller, MessageScrollerButton, MessageScrollerContent, MessageScrollerItem, MessageScrollerProvider, MessageScrollerViewport } from "@/components/ui/message-scroller";
+
+export function MessageThread({ messages }: { messages: Array<{ id: number; message: string; proposedDiscountBps: number | null; createdAt: Date; customerUser: { name: string; role: string }; line: { description: string } | null }> }) {
+  if (!messages.length) return <p className="muted">No messages yet.</p>;
+  return <div className="message-thread"><MessageScrollerProvider><MessageScroller><MessageScrollerViewport><MessageScrollerContent>{messages.map((message) => { const customer = message.customerUser.role === "CUSTOMER"; const initials = message.customerUser.name.split(" ").map((part) => part[0]).slice(0, 2).join(""); return <MessageScrollerItem key={message.id} messageId={String(message.id)}><Message align={customer ? "end" : "start"}><MessageAvatar><Avatar><AvatarFallback>{initials}</AvatarFallback></Avatar></MessageAvatar><MessageContent><MessageHeader>{message.customerUser.name}{message.line && ` · ${message.line.description}`}</MessageHeader><Bubble align={customer ? "end" : "start"} variant={customer ? "default" : "secondary"}><BubbleContent>{message.proposedDiscountBps !== null && <Badge variant="outline">Proposed {message.proposedDiscountBps / 100}%</Badge>}<p>{message.message}</p></BubbleContent></Bubble><MessageFooter>{new Date(message.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</MessageFooter></MessageContent></Message></MessageScrollerItem>; })}</MessageScrollerContent></MessageScrollerViewport><MessageScrollerButton/></MessageScroller></MessageScrollerProvider></div>;
+}

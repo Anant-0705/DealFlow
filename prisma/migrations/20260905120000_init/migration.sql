@@ -38,7 +38,7 @@ CREATE TABLE "Quote" (
     "status" "QuoteStatus" NOT NULL DEFAULT 'DRAFT',
     "currency" TEXT NOT NULL DEFAULT 'USD',
     "subtotal" DECIMAL(12,2) NOT NULL,
-    "discountPct" DECIMAL(5,2) NOT NULL DEFAULT 0,
+    -- "discountPct" DECIMAL(5,2) NOT NULL DEFAULT 0,
     "total" DECIMAL(12,2) NOT NULL,
     "notes" TEXT,
     "customerId" TEXT NOT NULL,

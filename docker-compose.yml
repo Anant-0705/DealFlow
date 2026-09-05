@@ -24,6 +24,14 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-dealflow}:${POSTGRES_PASSWORD:-dealflow}@postgres:5432/${POSTGRES_DB:-dealflow}
       AUTH_SECRET: ${AUTH_SECRET:-local-docker-secret-change-before-production}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-DealFlow <onboarding@resend.dev>}
+      CASHFREE_APP_ID: ${CASHFREE_APP_ID:-}
+      CASHFREE_SECRET_KEY: ${CASHFREE_SECRET_KEY:-}
+      CASHFREE_API_URL: ${CASHFREE_API_URL:-https://sandbox.cashfree.com/pg}
+      CASHFREE_API_VERSION: ${CASHFREE_API_VERSION:-2025-01-01}
+      CASHFREE_ENV: ${CASHFREE_ENV:-sandbox}
     depends_on:
       postgres:
         condition: service_healthy

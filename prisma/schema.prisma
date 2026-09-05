@@ -170,8 +170,10 @@ model User {
   approvalActions  ApprovalStep[]  @relation("ApprovalActor")
   auditEvents      AuditEvent[]
   recordedPayments Payment[]       @relation("PaymentRecorder")
+  paymentSessions  PaymentSession[] @relation("PaymentSessionCreator")
   portalMessages   PortalMessage[]
   customerInvites  CustomerInvite[] @relation("CustomerInviteCreator")
+  passwordResets   PasswordReset[]
   assignedTasks    Task[]           @relation("TaskAssignee")
   createdTasks     Task[]           @relation("TaskCreator")
   createdAt        DateTime        @default(now())
@@ -182,17 +184,20 @@ model User {
 }
 
 model Customer {
-  id        Int          @id @default(autoincrement())
-  name      String
-  code      String       @unique
-  tier      CustomerTier
-  email     String
-  notes     String?
-  users     User[]
-  invites   CustomerInvite[]
-  quotes    Quote[]
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id              Int          @id @default(autoincrement())
+  name            String
+  code            String       @unique
+  tier            CustomerTier
+  email           String
+  phone           String       @default("")
+  gstin           String       @default("")
+  billingAddress  String       @default("")
+  notes           String?
+  users           User[]
+  invites         CustomerInvite[]
+  quotes          Quote[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   @@index([tier])
 }
@@ -211,6 +216,19 @@ model CustomerInvite {
   createdAt   DateTime  @default(now())
 
   @@index([customerId, email])
+  @@index([expiresAt])
+}
+
+model PasswordReset {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
   @@index([expiresAt])
 }
 
@@ -308,6 +326,30 @@ model DiscountPolicy {
   upsellMarginFloorBps    Int      @default(2000)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
+}
+
+model CompanyProfile {
+  id               Int      @id @default(1)
+  legalName        String   @default("")
+  tradingName      String   @default("DealFlow")
+  tagline          String   @default("")
+  email            String   @default("")
+  phone            String   @default("")
+  addressLine1     String   @default("")
+  addressLine2     String   @default("")
+  city             String   @default("")
+  state            String   @default("")
+  pincode          String   @default("")
+  country          String   @default("India")
+  gstin            String   @default("")
+  pan              String   @default("")
+  bankName         String   @default("")
+  bankAccountName  String   @default("")
+  bankAccountNo    String   @default("")
+  bankIfsc         String   @default("")
+  logoDataUrl      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model Warehouse {
@@ -678,11 +720,12 @@ model Invoice {
   status      InvoiceStatus @default(UNPAID)
   issuedAt    DateTime
   dueAt       DateTime
-  lines       InvoiceLine[]
-  payments    Payment[]
-  creditNotes CreditNote[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  lines            InvoiceLine[]
+  payments         Payment[]
+  paymentSessions  PaymentSession[]
+  creditNotes      CreditNote[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   @@index([orderId])
   @@index([status])
@@ -721,6 +764,25 @@ model Payment {
 
   @@index([invoiceId])
   @@index([recordedById])
+}
+
+model PaymentSession {
+  id                Int      @id @default(autoincrement())
+  invoiceId         Int
+  invoice           Invoice  @relation(fields: [invoiceId], references: [id])
+  orderId           String   @unique
+  cfOrderId         String?
+  paymentSessionId  String
+  amountPaise       Int
+  status            String
+  createdById       Int
+  createdBy         User     @relation("PaymentSessionCreator", fields: [createdById], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([createdById])
+  @@index([status])
 }
 
 model CreditNote {

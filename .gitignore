@@ -46,3 +46,7 @@ next-env.d.ts
 
 # local implementation brief
 /Files/PHASE-1-README.md
+
+# local agent notes, not part of the app
+AGENTS.md
+CLAUDE.md

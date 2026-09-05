@@ -1,2 +1,11 @@
-import { ComingSoon } from "@/components/shared/ComingSoon";
-export default function Page() { return <ComingSoon title="Subscriptions & billing" phase="Phase 2" description="One-time and recurring lines, schedules, proration, and cancellation credits build on the Phase 1 plan schema."/>; }
+import Link from "next/link";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { formatMoney } from "@/lib/money";
+import { listSubscriptions } from "@/modules/billing/queries";
+import { runBillingAsOf } from "@/modules/billing/actions";
+
+export default async function BillingPage({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
+  const [subscriptions, query] = await Promise.all([listSubscriptions(), searchParams]);
+  const counts = { active: subscriptions.filter((row) => row.status === "ACTIVE").length, paused: subscriptions.filter((row) => row.status === "PAUSED").length, cancelled: subscriptions.filter((row) => row.status === "CANCELLED").length };
+  return <div><div className="page-header"><div><div className="eyebrow">Recurring revenue</div><h1>Subscriptions & billing</h1><p>Live contracts, upcoming cycles, proration, and renewals.</p></div><form action={runBillingAsOf} className="inline-form"><label>Run billing as of<input name="asOf" type="date" defaultValue={new Date().toISOString().slice(0, 10)}/></label><button className="button secondary">Run billing</button></form></div>{query.notice && <div className="alert success">{query.notice}</div>}<div className="stats-grid"><article><span>Active</span><strong>{counts.active}</strong><small>Billing normally</small></article><article><span>Paused</span><strong>{counts.paused}</strong><small>Temporarily stopped</small></article><article><span>Cancelled</span><strong>{counts.cancelled}</strong><small>Credit policy applied</small></article></div><section className="panel"><div className="table-scroll"><table><thead><tr><th>Customer</th><th>Product</th><th>Plan</th><th>Qty</th><th>Amount / cycle</th><th>Next bill</th><th>Status</th></tr></thead><tbody>{subscriptions.map((subscription) => <tr key={subscription.id}><td><Link href={`/app/billing/${subscription.order.code}`}>{subscription.order.quote.customer.name}</Link></td><td>{subscription.orderLine.product.name}</td><td>{subscription.plan.name}</td><td>{subscription.qty}</td><td>{formatMoney(subscription.unitPricePaise * subscription.qty)}</td><td>{subscription.nextBillingAt.toLocaleDateString("en-IN")}</td><td><StatusBadge status={subscription.status}/></td></tr>)}{!subscriptions.length && <tr><td colSpan={7} className="empty-cell">Subscriptions are created when a customer confirms a quote with recurring lines.</td></tr>}</tbody></table></div></section></div>;
+}

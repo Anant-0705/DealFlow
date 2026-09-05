@@ -3,7 +3,9 @@ export function mountLandingScroll(
   onStageChange: (stage: number) => void,
 ) {
   const stages = Array.from(root.querySelectorAll<HTMLElement>("[data-landing-stage]"));
+  const reveals = Array.from(root.querySelectorAll<HTMLElement>("[data-landing-reveal]"));
   let frame = 0;
+  root.setAttribute("data-motion-ready", "");
 
   const update = () => {
     frame = 0;
@@ -30,9 +32,24 @@ export function mountLandingScroll(
 
   window.addEventListener("scroll", scheduleUpdate, { passive: true });
   window.addEventListener("resize", scheduleUpdate);
+
+  const revealObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        (entry.target as HTMLElement).setAttribute("data-visible", "");
+        revealObserver.unobserve(entry.target);
+      });
+    },
+    { rootMargin: "0px 0px -8%", threshold: 0.08 },
+  );
+
+  reveals.forEach((element) => revealObserver.observe(element));
   update();
 
   return () => {
+    root.removeAttribute("data-motion-ready");
+    revealObserver.disconnect();
     window.removeEventListener("scroll", scheduleUpdate);
     window.removeEventListener("resize", scheduleUpdate);
     if (frame) window.cancelAnimationFrame(frame);

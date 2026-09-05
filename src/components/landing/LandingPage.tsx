@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowDown,
   ArrowRight,
   Check,
   CreditCard,
@@ -109,13 +108,16 @@ export function LandingPage() {
         </nav>
       </header>
 
-      <section className="landing-hero" aria-labelledby="landing-title">
+      <section className="landing-hero" aria-labelledby="landing-title" data-landing-reveal>
         <div className="landing-hero-copy">
           <p className="landing-kicker">Deal governance for the whole quote-to-cash thread</p>
-          <h1 id="landing-title">Quote-to-cash that shows its work.</h1>
+          <h1 id="landing-title">Quote-to-cash <span>that shows its work.</span></h1>
           <p className="landing-lede">Every exception has a reason, every handoff has an owner, and every revision keeps its history.</p>
-          <a className="landing-thread-link" href="#thread">Follow the decision thread <ArrowDown data-icon="inline-end" /></a>
-          <p className="landing-note">A calm operating surface for teams that need to know why.</p>
+          <div className="landing-hero-actions">
+            <a className="landing-primary-link" href="#access">Open the demo <ArrowRight data-icon="inline-end" /></a>
+            <a className="landing-thread-link" href="#thread">See how it reasons</a>
+          </div>
+          <p className="landing-note"><span className="engine-pulse" /> Actual pricing logic · revision-level audit trail · runs offline</p>
         </div>
 
         <div className="decision-demo" aria-label="Interactive pricing decision demo">
@@ -134,16 +136,16 @@ export function LandingPage() {
         <span>One quote</span><span>One decision thread</span><span>No hidden status changes</span>
       </section>
 
-      <section className="landing-thread" id="thread" aria-labelledby="thread-title">
+      <section className="landing-thread" id="thread" aria-labelledby="thread-title" data-landing-reveal>
         <div className="thread-intro"><p className="landing-kicker">The operating thread</p><h2 id="thread-title">Every handoff carries its reason forward.</h2><p>Scroll through the stages. The same thread connects commercial judgment to the cash event.</p><div className="thread-controls" role="tablist" aria-label="Decision stages">{stages.map((stage, index) => <button key={stage.label} type="button" role="tab" aria-selected={activeStage === index} className={activeStage === index ? "is-active" : ""} onClick={() => document.querySelector(`[data-landing-stage="${index}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" })}>{String(index + 1).padStart(2, "0")} {stage.label}</button>)}</div></div>
         <div className="thread-stages"><Image className="thread-art" src="/landing/decision-thread.png" alt="" width={190} height={760} loading="lazy" aria-hidden="true" />{stages.map((stage, index) => { const Icon = stage.icon; return <article key={stage.label} className="thread-stage" data-landing-stage={index} aria-labelledby={`stage-${index}`}><div className="thread-stage-marker"><Icon aria-hidden="true" /></div><div className="thread-stage-content"><span className="stage-index">0{index + 1} / 06</span><h3 id={`stage-${index}`}>{stage.label}</h3><p>{stage.reason}</p><code>{stage.code}</code></div></article>; })}</div>
       </section>
 
-      <section className="landing-quiet-band"><p>“Why this quote was flagged” is not a tooltip. It is part of the record.</p><div className="quiet-art"><Image src="/landing/empty-state.png" alt="" width={150} height={112} loading="lazy" aria-hidden="true" /><span>Reason strings stay close to the action that produced them.</span></div></section>
+      <section className="landing-quiet-band" data-landing-reveal><p>“Why this quote was flagged” is not a tooltip. It is part of the record.</p><div className="quiet-art"><Image src="/landing/empty-state.png" alt="" width={150} height={112} loading="lazy" aria-hidden="true" /><span>Reason strings stay close to the action that produced them.</span></div></section>
 
-      <section className="landing-roles" id="roles" aria-labelledby="roles-title"><div className="section-heading"><p className="landing-kicker">One system, five views</p><h2 id="roles-title">There is a clear view for every handoff.</h2></div><div className="roles-grid">{roles.map(([role, description]) => <article className="role-card" key={role}><UsersRound aria-hidden="true" /><h3>{role}</h3><p>{description}</p></article>)}</div></section>
+      <section className="landing-roles" id="roles" aria-labelledby="roles-title" data-landing-reveal><div className="section-heading"><p className="landing-kicker">One system, five views</p><h2 id="roles-title">There is a clear view for every handoff.</h2></div><div className="roles-grid">{roles.map(([role, description], index) => <article className="role-card" key={role}><span className="role-index">0{index + 1}</span><UsersRound aria-hidden="true" /><h3>{role}</h3><p>{description}</p></article>)}</div></section>
 
-      <section className="landing-access" id="access" aria-labelledby="access-title"><div className="section-heading"><p className="landing-kicker">Open the workspace</p><h2 id="access-title">Jump into a seeded role in one click.</h2><p>These demo accounts use the same authentication path as the application.</p></div><div className="demo-grid">{demoAccounts.map(([role, email, name]) => <form action={login} className="demo-card" key={email}><input type="hidden" name="email" value={email} /><input type="hidden" name="password" value="demo1234" /><span className="demo-role">{role}</span><strong>{name}</strong><code>{email}</code><button type="submit">Enter as {role} <ArrowRight data-icon="inline-end" /></button></form>)}</div></section>
+      <section className="landing-access" id="access" aria-labelledby="access-title" data-landing-reveal><div className="section-heading"><p className="landing-kicker">Open the workspace</p><h2 id="access-title">Choose a role. Start inside the real flow.</h2><p>No signup funnel and no staged screenshots. These accounts use the application&apos;s real authentication path.</p></div><div className="demo-grid">{demoAccounts.map(([role, email, name], index) => <form action={login} className="demo-card" key={email}><input type="hidden" name="email" value={email} /><input type="hidden" name="password" value="demo1234" /><span className="demo-index">0{index + 1}</span><span className="demo-role">{role}</span><strong>{name}</strong><code>{email}</code><button type="submit">Enter workspace <ArrowRight data-icon="inline-end" /></button></form>)}</div></section>
 
       <footer className="landing-footer"><div><strong>AccordFlow</strong><span>Quote-to-cash with an audit trail.</span></div><div><span>Next.js · Postgres · runs offline</span><span>What we didn&apos;t build: a black-box sales funnel.</span></div></footer>
     </main>

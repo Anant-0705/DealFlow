@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { logEvent } from "@/lib/audit";
 import { formObject } from "@/lib/validation";
-import { stockSchema, warehouseSchema } from "./schemas";
+import { receiptSchema, stockSchema, warehouseSchema } from "./schemas";
+import { reserveSuggestedAllocations, lockProductStock } from "./reserve";
+import { findConsolidatableBackorders } from "./receipts";
 
 export async function saveWarehouse(formData: FormData) {
   const session = await requireRole(["ADMIN"]); const value = warehouseSchema.parse(formObject(formData));
@@ -21,4 +23,121 @@ export async function saveStock(formData: FormData) {
     await logEvent(tx, { entity: "STOCK", entityId: row.id, action: "SETTINGS_CHANGED", actorId: session.userId, reason: "On-hand stock updated", meta: { onHand: value.onHand } });
   });
   revalidatePath("/app/settings/warehouses");
+}
+
+async function updateFulfillmentStatus(tx: Parameters<typeof logEvent>[0], orderId: number) {
+  const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, include: { lines: { include: { backorders: true } } } });
+  const hasOpen = order.lines.some((line) => line.backorders.some((backorder) => !backorder.consolidatedAt && backorder.qty > 0));
+  await tx.quote.update({ where: { id: order.quoteId }, data: { fulfillmentStatus: hasOpen ? "PARTIAL" : "FULFILLED", lastActivityAt: new Date() } });
+  return hasOpen ? "PARTIAL" as const : "FULFILLED" as const;
+}
+
+export async function acceptSuggestedSplit(formData: FormData) {
+  const session = await requireRole(["FINANCE", "ADMIN"]);
+  const orderCode = String(formData.get("orderCode") ?? "");
+  const result = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUniqueOrThrow({ where: { code: orderCode } });
+    const plan = await reserveSuggestedAllocations(tx, order.id);
+    const status = await updateFulfillmentStatus(tx, order.id);
+    await logEvent(tx, { entity: "ORDER", entityId: order.id, quoteId: order.quoteId, action: "SPLIT_ACCEPTED", actorId: session.userId, reason: `${plan.totalShipments} shipment plan accepted; fulfillment is ${status.toLowerCase()}.`, meta: JSON.parse(JSON.stringify(plan)) });
+    return plan;
+  }, { isolationLevel: "Serializable" });
+  revalidatePath(`/app/fulfillment/${orderCode}`);
+  revalidatePath("/app/fulfillment");
+  void result;
+}
+
+export async function manualOverride(formData: FormData) {
+  const session = await requireRole(["FINANCE", "ADMIN"]);
+  const orderCode = String(formData.get("orderCode") ?? "");
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRawUnsafe<Array<{ id: number }>>('SELECT "id" FROM "Order" WHERE "code" = $1 FOR UPDATE', orderCode);
+    const order = await tx.order.findUniqueOrThrow({ where: { code: orderCode }, include: { lines: { include: { allocations: true, product: { include: { category: true } } } } } });
+    if (order.lines.some((line) => line.allocations.length)) throw new Error("This order already has reserved allocations.");
+    for (const productId of [...new Set(order.lines.map((line) => line.productId))]) await lockProductStock(tx, productId);
+    const before = await tx.stock.findMany({ where: { productId: { in: order.lines.map((line) => line.productId) } } });
+    const requested = [...formData.entries()].filter(([key]) => key.startsWith("alloc:")).map(([key, value]) => {
+      const [, lineId, warehouseId] = key.split(":");
+      return { lineId: Number(lineId), warehouseId: Number(warehouseId), qty: Math.max(0, Math.floor(Number(value) || 0)) };
+    }).filter((row) => row.qty > 0);
+    for (const line of order.lines) {
+      if (line.product.isSubscription || line.product.category.name.toLowerCase() === "services") continue;
+      const rows = requested.filter((row) => row.lineId === line.id);
+      if (rows.reduce((sum, row) => sum + row.qty, 0) > line.qty) throw new Error("Manual allocation exceeds the ordered quantity.");
+      for (const row of rows) {
+        const stock = before.find((item) => item.warehouseId === row.warehouseId && item.productId === line.productId && item.variantId === line.variantId);
+        const available = stock ? stock.onHand - stock.reserved : 0;
+        const warehouse = await tx.warehouse.findUniqueOrThrow({ where: { id: row.warehouseId } });
+        if (!stock || row.qty > available) throw new Error(`${warehouse.name} has only ${Math.max(0, available)} available.`);
+        await tx.stock.update({ where: { id: stock.id }, data: { reserved: { increment: row.qty } } });
+        await tx.allocation.create({ data: { orderLineId: line.id, warehouseId: row.warehouseId, qty: row.qty, reserved: true, reason: "Manual allocation override." } });
+      }
+      const remainder = line.qty - rows.reduce((sum, row) => sum + row.qty, 0);
+      if (remainder) await tx.backorder.create({ data: { orderLineId: line.id, qty: remainder } });
+    }
+    const status = await updateFulfillmentStatus(tx, order.id);
+    await logEvent(tx, { entity: "ORDER", entityId: order.id, quoteId: order.quoteId, action: "SPLIT_OVERRIDDEN", actorId: session.userId, reason: `Manual warehouse split saved; fulfillment is ${status.toLowerCase()}.`, meta: { allocations: requested } });
+  }, { isolationLevel: "Serializable" });
+  revalidatePath(`/app/fulfillment/${orderCode}`);
+  revalidatePath("/app/fulfillment");
+}
+
+export async function recordStockReceipt(formData: FormData) {
+  const session = await requireRole(["FINANCE", "ADMIN"]);
+  const value = receiptSchema.parse({ warehouseId: formData.get("warehouseId"), productId: formData.get("productId"), variantId: formData.get("variantId"), qty: formData.get("qty"), receiptId: formData.get("receiptId") });
+  const orderCodes = await prisma.$transaction(async (tx) => {
+    await lockProductStock(tx, value.productId);
+    const stock = await tx.stock.findFirst({ where: { warehouseId: value.warehouseId, productId: value.productId, variantId: value.variantId } });
+    const row = stock ? await tx.stock.update({ where: { id: stock.id }, data: { onHand: { increment: value.qty } } }) : await tx.stock.create({ data: { warehouseId: value.warehouseId, productId: value.productId, variantId: value.variantId, onHand: value.qty, reserved: 0 } });
+    if (value.receiptId) await tx.stockReceipt.update({ where: { id: value.receiptId }, data: { receivedAt: new Date(), qty: value.qty } });
+    else await tx.stockReceipt.create({ data: { warehouseId: value.warehouseId, productId: value.productId, variantId: value.variantId, qty: value.qty, expectedAt: new Date(), receivedAt: new Date() } });
+    const candidates = await findConsolidatableBackorders(tx, value.productId, value.variantId);
+    const uniqueQuotes = new Map(candidates.map((item) => [item.orderLine.order.quoteId, item.orderLine.order]));
+    if (!uniqueQuotes.size) await logEvent(tx, { entity: "STOCK", entityId: row.id, action: "STOCK_RECEIVED", actorId: session.userId, reason: `${value.qty} units received into stock.` });
+    for (const order of uniqueQuotes.values()) await logEvent(tx, { entity: "STOCK", entityId: row.id, quoteId: order.quoteId, action: "STOCK_RECEIVED", actorId: session.userId, reason: `${value.qty} units received; ${order.code} can consolidate a backorder.`, meta: { warehouseId: value.warehouseId, productId: value.productId, variantId: value.variantId } });
+    return candidates.map((item) => item.orderLine.order.code);
+  }, { isolationLevel: "Serializable" });
+  for (const code of orderCodes) revalidatePath(`/app/fulfillment/${code}`);
+  revalidatePath("/app/fulfillment");
+}
+
+export async function consolidateBackorder(formData: FormData) {
+  const session = await requireRole(["FINANCE", "ADMIN"]);
+  const backorderId = Number(formData.get("backorderId"));
+  const orderCode = String(formData.get("orderCode") ?? "");
+  await prisma.$transaction(async (tx) => {
+    const backorder = await tx.backorder.findUniqueOrThrow({ where: { id: backorderId }, include: { orderLine: { include: { order: true } } } });
+    if (backorder.consolidatedAt || backorder.qty <= 0) throw new Error("This backorder is already consolidated.");
+    await lockProductStock(tx, backorder.orderLine.productId);
+    const stocks = await tx.stock.findMany({ where: { productId: backorder.orderLine.productId, variantId: backorder.orderLine.variantId, warehouse: { active: true } }, include: { warehouse: true } });
+    stocks.sort((a, b) => (b.onHand - b.reserved) - (a.onHand - a.reserved) || a.warehouse.shippingCostWeightPaise - b.warehouse.shippingCostWeightPaise || a.warehouseId - b.warehouseId);
+    const stock = stocks.find((item) => item.onHand - item.reserved > 0);
+    if (!stock) throw new Error("No stock is currently available for this backorder.");
+    const qty = Math.min(backorder.qty, stock.onHand - stock.reserved);
+    await tx.stock.update({ where: { id: stock.id }, data: { reserved: { increment: qty } } });
+    await tx.allocation.create({ data: { orderLineId: backorder.orderLineId, warehouseId: stock.warehouseId, qty, reserved: true, reason: "Consolidated from received stock." } });
+    if (qty === backorder.qty) await tx.backorder.update({ where: { id: backorder.id }, data: { consolidatedAt: new Date() } });
+    else await tx.backorder.update({ where: { id: backorder.id }, data: { qty: { decrement: qty } } });
+    const status = await updateFulfillmentStatus(tx, backorder.orderLine.orderId);
+    await logEvent(tx, { entity: "BACKORDER", entityId: backorder.id, quoteId: backorder.orderLine.order.quoteId, action: "BACKORDER_CONSOLIDATED", actorId: session.userId, reason: `${qty} unit${qty === 1 ? "" : "s"} allocated from ${stock.warehouse.name}; fulfillment is ${status.toLowerCase()}.`, meta: { warehouseId: stock.warehouseId, qty } });
+  }, { isolationLevel: "Serializable" });
+  revalidatePath(`/app/fulfillment/${orderCode}`);
+  revalidatePath("/app/fulfillment");
+}
+
+export async function markShipped(formData: FormData) {
+  const session = await requireRole(["FINANCE", "ADMIN"]);
+  const allocationId = Number(formData.get("allocationId"));
+  const orderCode = String(formData.get("orderCode") ?? "");
+  await prisma.$transaction(async (tx) => {
+    const allocation = await tx.allocation.findUniqueOrThrow({ where: { id: allocationId }, include: { orderLine: { include: { order: true } } } });
+    if (allocation.shippedAt) return;
+    await lockProductStock(tx, allocation.orderLine.productId);
+    const stock = await tx.stock.findFirstOrThrow({ where: { warehouseId: allocation.warehouseId, productId: allocation.orderLine.productId, variantId: allocation.orderLine.variantId } });
+    await tx.stock.update({ where: { id: stock.id }, data: { onHand: { decrement: allocation.qty }, reserved: { decrement: allocation.qty } } });
+    await tx.allocation.update({ where: { id: allocation.id }, data: { shippedAt: new Date(), reserved: false } });
+    await logEvent(tx, { entity: "ALLOCATION", entityId: allocation.id, quoteId: allocation.orderLine.order.quoteId, action: "SHIPPED", actorId: session.userId, reason: `${allocation.qty} unit${allocation.qty === 1 ? "" : "s"} shipped.` });
+  });
+  revalidatePath(`/app/fulfillment/${orderCode}`);
+  revalidatePath(`/app/invoices`);
 }

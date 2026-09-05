@@ -1,0 +1,6 @@
+import { manualOverride } from "@/modules/inventory/actions";
+
+export function ManualOverrideGrid({ orderCode, lines, warehouses, disabled }: { orderCode: string; lines: Array<{ id: number; qty: number; product: { name: string; isSubscription: boolean; category: { name: string } } }>; warehouses: Array<{ id: number; name: string }>; disabled: boolean }) {
+  const stockLines = lines.filter((line) => !line.product.isSubscription && line.product.category.name.toLowerCase() !== "services");
+  return <details className="panel override-panel"><summary>Manual override</summary><form action={manualOverride}><input type="hidden" name="orderCode" value={orderCode}/><div className="override-grid"><b>Line</b>{warehouses.map((warehouse) => <b key={warehouse.id}>{warehouse.name}</b>)}{stockLines.map((line) => <div className="override-row" key={line.id}><span>{line.product.name}<small>Need {line.qty}</small></span>{warehouses.map((warehouse) => <label key={warehouse.id}><input type="number" min="0" max={line.qty} defaultValue="0" name={`alloc:${line.id}:${warehouse.id}`}/></label>)}</div>)}</div><button className="button secondary" disabled={disabled}>Save manual split</button></form></details>;
+}

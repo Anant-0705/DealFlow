@@ -1,0 +1,3 @@
+export function StockTable({ rows }: { rows: Array<{ id: number; onHand: number; reserved: number; available: number; warehouse: { name: string }; product: { name: string }; variant: { attributeValue: string } | null }> }) {
+  return <div className="table-scroll"><table><thead><tr><th>Warehouse</th><th>Product / variant</th><th>On hand</th><th>Reserved</th><th>Available</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>{row.warehouse.name}</td><td>{row.product.name}<small>{row.variant?.attributeValue ?? "Base"}</small></td><td>{row.onHand}</td><td>{row.reserved}</td><td><strong>{row.available}</strong></td></tr>)}</tbody></table></div>;
+}

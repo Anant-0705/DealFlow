@@ -1,0 +1,27 @@
+ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'NUDGE_SENT';
+ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'ESCALATED';
+ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'ALERT_DISMISSED';
+ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'TASK_COMPLETED';
+ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'RESET';
+
+CREATE TYPE "TaskKind" AS ENUM ('NUDGE', 'ESCALATION');
+
+CREATE TABLE "Task" (
+  "id" SERIAL NOT NULL,
+  "quoteId" INTEGER NOT NULL,
+  "assigneeId" INTEGER NOT NULL,
+  "createdById" INTEGER NOT NULL,
+  "kind" "TaskKind" NOT NULL,
+  "message" TEXT NOT NULL,
+  "done" BOOLEAN NOT NULL DEFAULT false,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "Task_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX "Task_quoteId_createdAt_idx" ON "Task"("quoteId", "createdAt");
+CREATE INDEX "Task_assigneeId_done_idx" ON "Task"("assigneeId", "done");
+CREATE INDEX "Task_createdById_idx" ON "Task"("createdById");
+
+ALTER TABLE "Task" ADD CONSTRAINT "Task_quoteId_fkey" FOREIGN KEY ("quoteId") REFERENCES "Quote"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Task" ADD CONSTRAINT "Task_assigneeId_fkey" FOREIGN KEY ("assigneeId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Task" ADD CONSTRAINT "Task_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

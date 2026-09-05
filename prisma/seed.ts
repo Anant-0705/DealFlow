@@ -1,19 +1,13 @@
 import "dotenv/config";
 
 import { hash } from "bcryptjs";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../src/generated/prisma/client";
+import type { Prisma } from "../src/generated/prisma/client";
 import { evaluateRevision } from "../src/modules/pricing/engine";
-
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) throw new Error("DATABASE_URL is not set");
-const client = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
 const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000);
 const daysFromNow = (days: number) => new Date(Date.now() + days * 86_400_000);
 
-async function main() {
-  await client.$transaction(async (db) => {
+export async function seedDatabase(db: Prisma.TransactionClient) {
   await db.$executeRawUnsafe(`DO $$ DECLARE r RECORD; BEGIN
     FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations') LOOP
       EXECUTE 'TRUNCATE TABLE public.' || quote_ident(r.tablename) || ' RESTART IDENTITY CASCADE';
@@ -149,9 +143,17 @@ async function main() {
     const owner = i % 2 ? priya : ravi;
     const primary = [laptop, dock, monitor, warranty][i % 4];
     const discountBps = owner.id === ravi.id ? 500 + (i % 3) * 100 : 1100 + (i % 4) * 100;
-    const { quote, revision } = await createQuote({ code: `Q-${1000 + i}`, customer, owner, approvalStatus: "APPROVED", customerStatus: "CONFIRMED", products: [{ product: primary, qty: 1 + (i % 3), discountBps }], activityAt: daysAgo(4 + i * 3) });
+    const confirmedAt = daysAgo(4 + i * 3);
+    const { quote, revision } = await createQuote({ code: `Q-${1000 + i}`, customer, owner, approvalStatus: "APPROVED", customerStatus: "CONFIRMED", products: [{ product: primary, qty: 1 + (i % 3), discountBps }], activityAt: confirmedAt });
     const quoteLine = await db.quoteLine.findFirstOrThrow({ where: { revisionId: revision.id } });
-    const order = await db.order.create({ data: { code: `SO-${1000 + i}`, quoteId: quote.id, revisionId: revision.id, confirmedAt: daysAgo(4 + i * 3), lines: { create: { quoteLineId: quoteLine.id, productId: quoteLine.productId, variantId: quoteLine.variantId, qty: quoteLine.qty, unitPricePaise: quoteLine.unitPricePaise } } } });
+    const submittedAt = new Date(confirmedAt.getTime() - 2 * 3_600_000);
+    const approvedAt = new Date(confirmedAt.getTime() - 3_600_000);
+    await db.quoteRevision.update({ where: { id: revision.id }, data: { submittedAt } });
+    await db.auditEvent.createMany({ data: [
+      { entity: "REVISION", entityId: revision.id, quoteId: quote.id, action: "SUBMITTED", actorId: owner.id, reason: "Historical demo submission", at: submittedAt },
+      { entity: "REVISION", entityId: revision.id, quoteId: quote.id, action: "AUTO_APPROVED", actorId: owner.id, reason: "Historical demo approval", at: approvedAt },
+    ] });
+    const order = await db.order.create({ data: { code: `SO-${1000 + i}`, quoteId: quote.id, revisionId: revision.id, confirmedAt, lines: { create: { quoteLineId: quoteLine.id, productId: quoteLine.productId, variantId: quoteLine.variantId, qty: quoteLine.qty, unitPricePaise: quoteLine.unitPricePaise } } } });
     if (i < 12) await db.invoice.create({ data: { code: `INV-${1000 + i}`, orderId: order.id, kind: "ONE_TIME", totalPaise: revision.totalPaise, paidPaise: i % 2 ? revision.totalPaise : 0, status: i % 2 ? "PAID" : "UNPAID", issuedAt: daysAgo(3 + i * 3), dueAt: daysFromNow(14 - i) } });
   }
 
@@ -160,9 +162,16 @@ async function main() {
   const pending = await createQuote({ code: "Q-1041", customer: beta, owner: priya, approvalStatus: "PENDING", customerStatus: "DRAFT", products: [{ product: laptop, discountBps: 800, variantId: laptop32.id }, { product: setup, discountBps: 1200 }], requiredPending: true });
   await db.auditEvent.create({ data: { entity: "REVISION", entityId: pending.revision.id, quoteId: pending.quote.id, action: "SUBMITTED", actorId: priya.id, reason: "Seeded approval example", meta: { reasons: pending.revision.reasons } } });
 
-  console.log("Seed complete: 8 users, 3 customers, 8 products, 23 quotes, and a ready approval inbox.");
-  void admin; void manager; void finance; void yearly; void sla;
-  }, { timeout: 120_000 });
-}
+  await createQuote({ code: "Q-1042", customer: acme, owner: priya, approvalStatus: "PENDING", customerStatus: "DRAFT", products: [{ product: laptop, qty: 2, discountBps: 2200, variantId: laptop16.id }], requiredPending: true });
 
-main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => client.$disconnect());
+  const slipping = await createQuote({ code: "Q-1043", customer: beta, owner: ravi, approvalStatus: "APPROVED", customerStatus: "CONFIRMED", products: [{ product: laptop, qty: 6, discountBps: 800, variantId: laptop16.id }] });
+  const slippingLine = await db.quoteLine.findFirstOrThrow({ where: { revisionId: slipping.revision.id } });
+  const promisedDeliveryDate = daysFromNow(2);
+  const slippingOrder = await db.order.create({ data: { code: "SO-1043", quoteId: slipping.quote.id, revisionId: slipping.revision.id, confirmedAt: new Date(), promisedDeliveryDate, lines: { create: { quoteLineId: slippingLine.id, productId: slippingLine.productId, variantId: slippingLine.variantId, qty: slippingLine.qty, unitPricePaise: slippingLine.unitPricePaise } } } });
+  const slippingOrderLine = await db.orderLine.findFirstOrThrow({ where: { orderId: slippingOrder.id } });
+  await db.backorder.create({ data: { orderLineId: slippingOrderLine.id, qty: 1, expectedAt: daysFromNow(4) } });
+  await db.quote.update({ where: { id: slipping.quote.id }, data: { fulfillmentStatus: "PARTIAL", promisedDeliveryDate } });
+
+  console.log("Seed complete: 8 users, 3 customers, 8 products, 25 quotes, and Phase 3 health examples.");
+  void admin; void manager; void finance; void yearly; void sla;
+}

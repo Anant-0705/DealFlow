@@ -119,6 +119,16 @@ enum AuditAction {
   BILLING_RUN
   CREDIT_NOTE_ISSUED
   PAYMENT_RECORDED
+  NUDGE_SENT
+  ESCALATED
+  ALERT_DISMISSED
+  TASK_COMPLETED
+  RESET
+}
+
+enum TaskKind {
+  NUDGE
+  ESCALATION
 }
 
 enum SubscriptionStatus {
@@ -155,6 +165,8 @@ model User {
   recordedPayments Payment[]       @relation("PaymentRecorder")
   portalMessages   PortalMessage[]
   customerInvites  CustomerInvite[] @relation("CustomerInviteCreator")
+  assignedTasks    Task[]           @relation("TaskAssignee")
+  createdTasks     Task[]           @relation("TaskCreator")
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -377,6 +389,7 @@ model Quote {
   messages             PortalMessage[]
   auditEvents          AuditEvent[]
   orders               Order[]
+  tasks                Task[]
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 
@@ -387,6 +400,24 @@ model Quote {
   @@index([fulfillmentStatus])
   @@index([paymentStatus])
   @@index([lastActivityAt])
+}
+
+model Task {
+  id          Int      @id @default(autoincrement())
+  quoteId     Int
+  quote       Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  assigneeId  Int
+  assignee    User     @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  createdById Int
+  createdBy   User     @relation("TaskCreator", fields: [createdById], references: [id])
+  kind        TaskKind
+  message     String
+  done        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([quoteId, createdAt])
+  @@index([assigneeId, done])
+  @@index([createdById])
 }
 
 model QuoteRevision {

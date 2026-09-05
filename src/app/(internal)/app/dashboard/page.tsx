@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Boxes, CircleDollarSign, FileCheck2, FileText, IndianRupee, Plus, ShieldAlert } from "lucide-react";
 import { requireInternal } from "@/lib/auth";
-import { hasRole, QUOTE_EDITOR_ROLES } from "@/lib/roles";
+import { hasRole, QUOTE_EDITOR_ROLES, SETTINGS_ROLES } from "@/lib/roles";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,11 +11,14 @@ import { MyTasks } from "@/components/dashboard/MyTasks";
 import { getDashboardData } from "@/modules/dashboard/queries";
 import { formatMoney } from "@/lib/money";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { getCompanyProfile } from "@/modules/company/queries";
+import { companyIdentityGaps } from "@/modules/company/readiness";
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
   const session = await requireInternal();
   const canCreate = hasRole(session.role, QUOTE_EDITOR_ROLES);
-  const [{ notice }, data] = await Promise.all([searchParams, getDashboardData(session)]);
+  const [{ notice }, data, company] = await Promise.all([searchParams, getDashboardData(session), getCompanyProfile()]);
+  const companyGaps = hasRole(session.role, SETTINGS_ROLES) ? companyIdentityGaps(company) : [];
 
   const metrics = [
     { label: "Pending approvals", value: data.metrics.pendingApprovals, description: "Waiting for a decision", icon: FileCheck2, href: session.role === "REP" ? "/app/quotations?status=pending" : "/app/approvals" },
@@ -29,6 +32,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   return <div>
     <PageHeader eyebrow="Sales workspace" title="Good afternoon. Keep deals moving." description="One workspace for pricing discipline, approvals, and accountable execution." actions={canCreate && <Link className={buttonVariants({ size: "lg" })} href="/app/quotations/new"><Plus data-icon="inline-start"/>New quotation</Link>} />
     {notice && <Alert><AlertTitle>Workspace notice</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert>}
+    {companyGaps.length > 0 && <Alert variant="destructive"><AlertTitle>Company letterhead is incomplete</AlertTitle><AlertDescription>Quotations and invoices cannot be sent, confirmed, or printed until {companyGaps.map((item) => item.label).join(", ")} are saved. <Link href="/app/settings/company">Open Settings → Company</Link></AlertDescription></Alert>}
     <div className="stats-grid dashboard-stats">{metrics.map((metric) => <StatCard key={metric.label} {...metric}/>)}</div>
     <div className="dashboard-grid">
       <Card><CardHeader><CardTitle>Recent Activity</CardTitle><CardDescription>The latest auditable events across the deals you can see.</CardDescription></CardHeader><CardContent><RecentActivity events={data.recentActivity}/></CardContent></Card>

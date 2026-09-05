@@ -22,6 +22,18 @@ export function getQuoteDetail(code: string) {
   } });
 }
 
+export function getQuoteForPrint(code: string) {
+  return prisma.quote.findUnique({
+    where: { code },
+    include: {
+      customer: true,
+      owner: true,
+      currentRevision: { include: { lines: { include: { variant: true } } } },
+      orders: { select: { code: true, confirmedAt: true }, orderBy: { confirmedAt: "desc" }, take: 1 },
+    },
+  });
+}
+
 export const listForKanban = listQuotes;
 
 export async function getBuilderData() {

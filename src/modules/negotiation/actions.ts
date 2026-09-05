@@ -8,16 +8,19 @@ import { logEvent } from "@/lib/audit";
 import { evaluateRevision } from "@/modules/pricing/engine";
 import { confirmQuotation } from "./confirm";
 import { confirmSchema, counterSchema, messageSchema } from "./schemas";
+import { getDocumentParties } from "@/modules/company/queries";
 
 const nullableNumber = (value: FormDataEntryValue | null) => value ? Number(value) : null;
 
 export async function sendToCustomer(formData: FormData) {
   const session = await requireRole(["REP", "MANAGER", "ADMIN"]);
   const quoteCode = String(formData.get("quoteCode") ?? "");
-  const quote = await prisma.quote.findUniqueOrThrow({ where: { code: quoteCode }, include: { currentRevision: true } });
+  const quote = await prisma.quote.findUniqueOrThrow({ where: { code: quoteCode }, include: { currentRevision: true, customer: true } });
   if (!quote.currentRevision || quote.approvalStatus !== "APPROVED") throw new Error("This quotation must be approved before it can be sent.");
   if (quote.customerStatus === "CONFIRMED") throw new Error("A confirmed quotation cannot be sent again.");
   if (session.role === "REP" && quote.ownerId !== session.userId) throw new Error("Only the quote owner can send it.");
+  const documents = await getDocumentParties(quote.customerId);
+  if (!documents.ready) redirect(`/app/quotations/${quoteCode}?error=${encodeURIComponent(documents.message)}`);
   await prisma.$transaction(async (tx) => {
     await tx.quote.update({ where: { id: quote.id }, data: { customerStatus: "SENT", lastActivityAt: new Date() } });
     await logEvent(tx, { entity: "QUOTE", entityId: quote.id, quoteId: quote.id, action: "SENT", actorId: session.userId, reason: `${quote.code} v${quote.currentRevision!.version} sent to customer.` });

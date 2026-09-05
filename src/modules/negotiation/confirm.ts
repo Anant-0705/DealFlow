@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/audit";
 import { createOrderFromRevision } from "@/modules/orders/actions";
 import { generateInitialBilling } from "@/modules/billing/onConfirm";
+import { getDocumentParties } from "@/modules/company/queries";
 
 export type ConfirmActor = { userId: number; role: UserRole; customerId: number | null; onBehalf?: boolean };
 
@@ -18,6 +19,8 @@ export async function confirmQuotation(quoteCode: string, revisionId: number, ac
     const steps = quote.currentRevision.approvalSteps;
     const approvalsValid = quote.approvalStatus === "APPROVED" && steps.every((step) => step.status === "APPROVED");
     if (!approvalsValid) return { ok: false as const, code: "APPROVAL" as const, message: "Awaiting internal approval." };
+    const documents = await getDocumentParties(quote.customerId);
+    if (!documents.ready) return { ok: false as const, code: "DOCUMENTS" as const, message: documents.message };
 
     const maxLead = await tx.warehouse.aggregate({ where: { active: true }, _max: { replenishmentLeadDays: true } });
     const confirmedAt = new Date();

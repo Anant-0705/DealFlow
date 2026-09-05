@@ -1,15 +1,16 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { approve, reject, returnForRevision } from "@/modules/approvals/actions";
 import { getQuoteDetail } from "@/modules/quotes/queries";
-import { requireSession } from "@/lib/auth";
+import { requirePageRole } from "@/lib/auth";
+import { APPROVER_ROLES } from "@/lib/roles";
 import { formatMoney, formatPercent } from "@/lib/money";
 import { ReasonList } from "@/components/shared/ReasonList";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AuditTrail } from "@/components/approvals/AuditTrail";
 
 export default async function ApprovalReviewPage({ params }: { params: Promise<{ code: string }> }) {
-  const session = await requireSession(); if (!["MANAGER", "FINANCE", "ADMIN"].includes(session.role)) redirect("/app/dashboard");
+  const session = await requirePageRole(APPROVER_ROLES);
   const { code } = await params; const quote = await getQuoteDetail(code); if (!quote?.currentRevision) notFound(); const revision = quote.currentRevision;
   const expectedLevel = session.role === "FINANCE" ? "FINANCE" : "MANAGER";
   const activeStep = revision.approvalSteps.find((step) => step.level === expectedLevel && step.status === "PENDING" && revision.approvalSteps.filter((prior) => prior.sequence < step.sequence).every((prior) => prior.status === "APPROVED"));

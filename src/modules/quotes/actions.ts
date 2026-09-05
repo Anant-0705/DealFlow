@@ -6,11 +6,10 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { nextQuoteCode } from "@/lib/codes";
 import { requireRole } from "@/lib/auth";
+import { INTERNAL_ROLES, QUOTE_EDITOR_ROLES } from "@/lib/roles";
 import { logEvent } from "@/lib/audit";
 import { evaluateRevision } from "@/modules/pricing/engine";
 import { draftSchema, type DraftInput } from "./schemas";
-
-const quoteEditorRoles = ["REP", "ADMIN"] as const;
 
 async function resolveEvaluation(input: DraftInput) {
   const quote = await prisma.quote.findUniqueOrThrow({ where: { id: input.quoteId }, include: { customer: true, currentRevision: true } });
@@ -63,7 +62,7 @@ async function persistDraft(input: DraftInput, actorId: number, canOverrideOwner
 }
 
 export async function createQuote(formData: FormData) {
-  const session = await requireRole([...quoteEditorRoles]);
+  const session = await requireRole(QUOTE_EDITOR_ROLES);
   const customerId = z.coerce.number().int().positive().parse(formData.get("customerId"));
   const code = await nextQuoteCode(prisma);
   const quote = await prisma.$transaction(async (tx) => {
@@ -77,7 +76,7 @@ export async function createQuote(formData: FormData) {
 }
 
 export async function saveDraft(raw: unknown) {
-  const session = await requireRole([...quoteEditorRoles]);
+  const session = await requireRole(QUOTE_EDITOR_ROLES);
   const input = draftSchema.parse(raw);
   const evaluation = await persistDraft(input, session.userId, session.role === "ADMIN");
   revalidatePath(`/app/quotations`);
@@ -85,7 +84,7 @@ export async function saveDraft(raw: unknown) {
 }
 
 export async function submitForApproval(raw: unknown) {
-  const session = await requireRole([...quoteEditorRoles]);
+  const session = await requireRole(QUOTE_EDITOR_ROLES);
   const input = draftSchema.parse(raw);
   if (!input.lines.length) throw new Error("Add at least one product before submitting.");
   const evaluation = await persistDraft(input, session.userId, session.role === "ADMIN");
@@ -106,7 +105,7 @@ export async function submitForApproval(raw: unknown) {
 }
 
 export async function reviseQuote(quoteId: number) {
-  const session = await requireRole([...quoteEditorRoles]);
+  const session = await requireRole(QUOTE_EDITOR_ROLES);
   const id = z.number().int().positive().parse(quoteId);
   const quote = await prisma.quote.findUniqueOrThrow({ where: { id }, include: { currentRevision: { include: { lines: true } } } });
   if (session.role !== "ADMIN" && quote.ownerId !== session.userId) throw new Error("Only the quote owner can create a revision.");
@@ -123,7 +122,7 @@ export async function reviseQuote(quoteId: number) {
 }
 
 export async function dismissUpsell(revisionId: number, productId: number) {
-  const session = await requireRole([...quoteEditorRoles]);
+  const session = await requireRole(QUOTE_EDITOR_ROLES);
   z.number().int().positive().parse(revisionId);
   z.number().int().positive().parse(productId);
   const revision = await prisma.quoteRevision.findUniqueOrThrow({ where: { id: revisionId }, include: { quote: true } });
@@ -138,7 +137,7 @@ export async function dismissUpsell(revisionId: number, productId: number) {
 }
 
 export async function reloadWorkspace() {
-  await requireRole(["REP", "MANAGER", "FINANCE", "ADMIN"]);
+  await requireRole(INTERNAL_ROLES);
   revalidatePath("/app", "layout");
   return { ok: true };
 }

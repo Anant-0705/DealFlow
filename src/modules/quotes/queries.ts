@@ -7,6 +7,10 @@ export function listQuotes(ownerId?: number) {
   return prisma.quote.findMany({ where: ownerId ? { ownerId } : undefined, include: { customer: true, owner: true, currentRevision: true }, orderBy: { lastActivityAt: "desc" } });
 }
 
+export function listCommandQuotes() {
+  return prisma.quote.findMany({ select: { code: true, customer: { select: { name: true } } }, orderBy: { lastActivityAt: "desc" }, take: 40 });
+}
+
 export function getQuoteDetail(code: string) {
   return prisma.quote.findUnique({ where: { code }, include: {
     customer: true, owner: true,

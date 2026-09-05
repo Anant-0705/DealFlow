@@ -24,16 +24,19 @@ export async function nudgeRep(formData: FormData) {
 export async function escalateToManager(formData: FormData) {
   const session = await requireRole(["MANAGER", "FINANCE", "ADMIN"]);
   const input = quoteMessageSchema.parse({ quoteId: formData.get("quoteId"), message: formData.get("message") });
-  await prisma.$transaction(async (tx) => {
-    const quote = await tx.quote.findUniqueOrThrow({ where: { id: input.quoteId }, select: { id: true, ownerId: true } });
+  const quoteCode = await prisma.$transaction(async (tx) => {
+    const quote = await tx.quote.findUniqueOrThrow({ where: { id: input.quoteId }, select: { id: true, ownerId: true, code: true } });
     const manager = session.role === "MANAGER"
       ? await tx.user.findUniqueOrThrow({ where: { id: session.userId } })
       : await tx.user.findFirstOrThrow({ where: { role: "MANAGER" }, orderBy: { id: "asc" } });
     const task = await tx.task.create({ data: { quoteId: quote.id, assigneeId: manager.id, createdById: session.userId, kind: "ESCALATION", message: input.message } });
     await tx.quote.update({ where: { id: quote.id }, data: { ownerId: manager.id } });
     await logEvent(tx, { entity: "TASK", entityId: task.id, quoteId: quote.id, action: "ESCALATED", actorId: session.userId, reason: input.message, meta: { previousOwnerId: quote.ownerId, managerId: manager.id } });
+    return quote.code;
   });
-  revalidatePath("/app");
+  revalidatePath("/app/deal-health");
+  revalidatePath("/app/dashboard");
+  revalidatePath(`/app/quotations/${quoteCode}`);
 }
 
 export async function dismissAlert(formData: FormData) {

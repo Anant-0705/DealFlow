@@ -8,6 +8,7 @@ import { CashfreePayButton } from "@/components/billing/CashfreePayButton";
 import { getDocumentParties } from "@/modules/company/queries";
 import { DocumentReadyAlert } from "@/components/print/DocumentBlocked";
 import { formatMoney } from "@/lib/money";
+import { invoiceRemainingPaise } from "@/modules/billing/invoice-balance";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { InvoiceStepper } from "@/components/billing/InvoiceStepper";
 import { PrintButton } from "@/components/billing/PrintButton";
@@ -34,7 +35,7 @@ export default async function InvoicePage({
     getDocumentParties(invoice.order.quote.customer.id),
     cashfreeGatewayStatus(),
   ]);
-  const balance = invoice.totalPaise - invoice.paidPaise;
+  const balance = invoiceRemainingPaise(invoice);
   const canPayOnline = session.role === "FINANCE" || session.role === "ADMIN";
   const shipped = invoice.order.lines.some((line) => line.allocations.some((allocation) => Boolean(allocation.shippedAt)));
   const today = new Date().toISOString().slice(0, 10);
@@ -45,7 +46,7 @@ export default async function InvoicePage({
     {query.error && <Alert className="no-print" variant="destructive"><AlertDescription>{query.error}</AlertDescription></Alert>}
     <DocumentReadyAlert gaps={documents.gaps} customerName={invoice.order.quote.customer.name} customerHref={`/app/settings/customers/${invoice.order.quote.customer.code}`} action="print this invoice" />
     <div className="page-header"><div><div className="eyebrow">{invoice.order.quote.customer.name} · {invoice.kind.replaceAll("_", " ")}</div><h1>{invoice.code}</h1><p>Issued {invoice.issuedAt.toLocaleDateString("en-IN")} · Due {invoice.dueAt.toLocaleDateString("en-IN")}</p></div><div className="invoice-balance"><StatusBadge status={invoice.status}/><strong>{formatMoney(balance)}</strong><span>balance due</span></div></div>
-    <InvoiceStepper confirmed shipped={shipped} invoiced paid={invoice.status === "PAID"}/>
+    <InvoiceStepper confirmed shipped={shipped} invoiced paid={invoice.status === "PAID" || invoice.status === "CREDITED"}/>
 
     <Card>
       <CardHeader><CardTitle>Invoice lines</CardTitle><CardDescription>Amounts and taxes captured from the confirmed quotation.</CardDescription></CardHeader>

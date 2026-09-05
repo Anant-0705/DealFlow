@@ -1,4 +1,5 @@
 import { formatMoney } from "@/lib/money";
+import { invoiceRemainingPaise } from "@/modules/billing/invoice-balance";
 import { companyAddressLines, DocumentBank, DocumentLetterhead, DocumentParties } from "./DocumentLetterhead";
 
 type InvoiceData = Awaited<ReturnType<typeof import("@/modules/billing/queries").getInvoice>>;
@@ -6,7 +7,7 @@ type Company = Awaited<ReturnType<typeof import("@/modules/company/queries").get
 
 export function InvoicePrint({ invoice, company }: { invoice: NonNullable<InvoiceData>; company: Company }) {
   const credits = invoice.creditNotes.reduce((sum, note) => sum + note.amountPaise, 0);
-  const balance = Math.max(0, invoice.totalPaise - invoice.paidPaise - credits);
+  const balance = invoiceRemainingPaise(invoice);
   const customer = invoice.order.quote.customer;
   return (
     <article className="print-document invoice-print">

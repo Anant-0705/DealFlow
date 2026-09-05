@@ -15,3 +15,17 @@ export function parseDateInput(value: FormDataEntryValue | null) {
   }
   return date;
 }
+
+export function utcDateKey(value: Date) {
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
+}
+
+export function utcTodayKey() {
+  return utcDateKey(new Date());
+}
+
+export function assertEffectiveToday(effectiveAt: Date) {
+  if (utcDateKey(effectiveAt) !== utcTodayKey()) {
+    throw new Error("Changes take effect today. Choose today's date.");
+  }
+}

@@ -5,6 +5,7 @@ import { getInvoice } from "@/modules/billing/queries";
 import { cashfreeGatewayStatus } from "@/modules/billing/gateway";
 import { getDocumentParties } from "@/modules/company/queries";
 import { formatMoney } from "@/lib/money";
+import { invoiceRemainingPaise } from "@/modules/billing/invoice-balance";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { CashfreePayButton } from "@/components/billing/CashfreePayButton";
 import { DocumentReadyAlert } from "@/components/print/DocumentBlocked";
@@ -28,7 +29,7 @@ export default async function PortalInvoicePage({
     getDocumentParties(session.customerId),
     cashfreeGatewayStatus(),
   ]);
-  const balance = invoice.totalPaise - invoice.paidPaise;
+  const balance = invoiceRemainingPaise(invoice);
   return (
     <div className="portal-page invoice-page">
       <Link className="back-link" href="/portal/invoices">← Invoices</Link>

@@ -1,5 +1,32 @@
 import { logEvent } from "@/lib/audit";
 import type { Prisma } from "@/generated/prisma/client";
+import {
+  creditedPaise,
+  invoiceRemainingPaise,
+  invoiceStatusFromBalances,
+  quotePaymentStatusFromInvoices,
+} from "./invoice-balance";
+
+export async function refreshQuotePaymentStatus(tx: Prisma.TransactionClient, orderId: number) {
+  const [order, invoices] = await Promise.all([
+    tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { quoteId: true } }),
+    tx.invoice.findMany({
+      where: { orderId },
+      select: { totalPaise: true, paidPaise: true, creditNotes: { select: { amountPaise: true } } },
+    }),
+  ]);
+  await tx.quote.update({
+    where: { id: order.quoteId },
+    data: {
+      paymentStatus: quotePaymentStatusFromInvoices(invoices.map((invoice) => ({
+        totalPaise: invoice.totalPaise,
+        paidPaise: invoice.paidPaise,
+        creditedPaise: creditedPaise(invoice.creditNotes),
+      }))),
+      lastActivityAt: new Date(),
+    },
+  });
+}
 
 export async function applyInvoicePayment(
   tx: Prisma.TransactionClient,
@@ -14,8 +41,11 @@ export async function applyInvoicePayment(
 ) {
   const existing = await tx.payment.findUnique({ where: { reference: input.reference } });
   if (existing) return { duplicate: true as const, paymentId: existing.id };
-  const invoice = await tx.invoice.findUniqueOrThrow({ where: { code: input.invoiceCode }, include: { order: true } });
-  const balance = invoice.totalPaise - invoice.paidPaise;
+  const invoice = await tx.invoice.findUniqueOrThrow({
+    where: { code: input.invoiceCode },
+    include: { order: true, creditNotes: { select: { amountPaise: true } } },
+  });
+  const balance = invoiceRemainingPaise(invoice);
   if (input.amountPaise <= 0) throw new Error("Enter a positive amount.");
   if (input.amountPaise > balance) throw new Error(`Payment exceeds balance ₹${(balance / 100).toLocaleString("en-IN")}.`);
   const payment = await tx.payment.create({
@@ -29,14 +59,11 @@ export async function applyInvoicePayment(
     },
   });
   const paidPaise = invoice.paidPaise + input.amountPaise;
-  await tx.invoice.update({ where: { id: invoice.id }, data: { paidPaise, status: paidPaise === invoice.totalPaise ? "PAID" : "PARTIAL" } });
-  const invoices = await tx.invoice.findMany({ where: { orderId: invoice.orderId }, select: { id: true, totalPaise: true, paidPaise: true } });
-  const allPaid = invoices.every((row) => row.id === invoice.id ? paidPaise >= row.totalPaise : row.paidPaise >= row.totalPaise);
-  const anyPaid = invoices.some((row) => row.id === invoice.id ? paidPaise > 0 : row.paidPaise > 0);
-  await tx.quote.update({
-    where: { id: invoice.order.quoteId },
-    data: { paymentStatus: allPaid ? "PAID" : anyPaid ? "PARTIAL" : "UNPAID", lastActivityAt: new Date() },
+  await tx.invoice.update({
+    where: { id: invoice.id },
+    data: { paidPaise, status: invoiceStatusFromBalances({ totalPaise: invoice.totalPaise, paidPaise }, creditedPaise(invoice.creditNotes)) },
   });
+  await refreshQuotePaymentStatus(tx, invoice.orderId);
   await logEvent(tx, {
     entity: "PAYMENT",
     entityId: payment.id,

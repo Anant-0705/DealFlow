@@ -12,6 +12,10 @@ export type HealthAlert = {
   reason: string;
   flaggedSince: Date;
   insufficientHistory: boolean;
+  orderCode?: string;
+  productId?: number;
+  variantId?: number | null;
+  neededQty?: number;
 };
 
 const DAY_MS = 86_400_000;
@@ -42,6 +46,13 @@ export type DiscountQuoteInput = {
   lastActivityAt: Date;
 };
 
+export type SlippageReceipt = {
+  expectedAt: Date;
+  warehouse: string;
+  warehouseId?: number;
+  qty: number;
+};
+
 export type SlippageInput = {
   quoteId: number;
   code: string;
@@ -56,7 +67,7 @@ export type SlippageInput = {
   qty: number;
   promisedDeliveryDate: Date;
   backorderCreatedAt: Date;
-  receipts: Array<{ expectedAt: Date; warehouse: string }>;
+  receipts: SlippageReceipt[];
 };
 
 function dismissed(keySet: ReadonlySet<string> | undefined, quoteId: number, kind: HealthAlertKind) {
@@ -138,15 +149,61 @@ export function discountAnomaly(
   });
 }
 
+export type ReceiptPoolItem = SlippageReceipt & {
+  productId: number;
+  variantId: number | null;
+};
+
+export function assignReceiptsToDemands(
+  demands: Array<{ key: string; productId: number; variantId: number | null; qty: number; createdAt: Date }>,
+  receipts: ReceiptPoolItem[],
+) {
+  const pool = receipts.map((receipt) => ({ ...receipt, remaining: receipt.qty }));
+  const assigned = new Map<string, SlippageReceipt[]>();
+  for (const demand of [...demands].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.key.localeCompare(b.key))) {
+    let need = demand.qty;
+    const got: SlippageReceipt[] = [];
+    for (const receipt of pool
+      .filter((item) => item.productId === demand.productId && item.variantId === demand.variantId && item.remaining > 0)
+      .toSorted((a, b) => a.expectedAt.getTime() - b.expectedAt.getTime())) {
+      const take = Math.min(need, receipt.remaining);
+      got.push({ expectedAt: receipt.expectedAt, warehouse: receipt.warehouse, warehouseId: receipt.warehouseId, qty: take });
+      receipt.remaining -= take;
+      need -= take;
+      if (need <= 0) break;
+    }
+    assigned.set(demand.key, got);
+  }
+  return assigned;
+}
+
+export function coverDemand(needed: number, receipts: SlippageReceipt[], promisedDeliveryDate: Date) {
+  let remaining = needed;
+  let remainingAfterPromise = needed;
+  let covering: SlippageReceipt | undefined;
+  for (const receipt of receipts.toSorted((a, b) => a.expectedAt.getTime() - b.expectedAt.getTime())) {
+    if (remaining <= 0) break;
+    const take = Math.min(remaining, receipt.qty);
+    remaining -= take;
+    covering = receipt;
+    if (receipt.expectedAt <= promisedDeliveryDate) remainingAfterPromise -= take;
+  }
+  if (remainingAfterPromise <= 0) return { status: "on-time" as const, covering, uncovered: 0 };
+  if (remaining <= 0) return { status: "late" as const, covering, uncovered: remainingAfterPromise };
+  return { status: "missing" as const, covering, uncovered: remaining };
+}
+
 export function deliverySlippage(inputs: SlippageInput[], dismissedKeys?: ReadonlySet<string>): HealthAlert[] {
   return inputs.flatMap((input) => {
     if (dismissed(dismissedKeys, input.quoteId, "DELIVERY_SLIPPAGE")) return [];
-    const nextReceipt = input.receipts.toSorted((a, b) => a.expectedAt.getTime() - b.expectedAt.getTime())[0];
-    if (nextReceipt && nextReceipt.expectedAt <= input.promisedDeliveryDate) return [];
+    const coverage = coverDemand(input.qty, input.receipts, input.promisedDeliveryDate);
+    if (coverage.status === "on-time") return [];
     const item = `${input.qty} × ${input.product}${input.variant ? ` (${input.variant})` : ""} backordered`;
-    const reason = nextReceipt
-      ? `${input.orderCode}: ${item}; next expected receipt ${formatDay(nextReceipt.expectedAt)} at ${nextReceipt.warehouse}; promised ${formatDay(input.promisedDeliveryDate)} (${Math.ceil((nextReceipt.expectedAt.getTime() - input.promisedDeliveryDate.getTime()) / DAY_MS)} days late).`
-      : `${input.orderCode}: ${item}; no receipt scheduled before the ${formatDay(input.promisedDeliveryDate)} promise date.`;
+    const reason = coverage.status === "late" && coverage.covering
+      ? `${input.orderCode}: ${item}; inbound covering it arrives ${formatDay(coverage.covering.expectedAt)} at ${coverage.covering.warehouse}; promised ${formatDay(input.promisedDeliveryDate)} (${Math.ceil((coverage.covering.expectedAt.getTime() - input.promisedDeliveryDate.getTime()) / DAY_MS)} days late).`
+      : coverage.covering
+        ? `${input.orderCode}: ${item}; ${coverage.uncovered} still uncovered after scheduled receipts. Next inbound ${formatDay(coverage.covering.expectedAt)} at ${coverage.covering.warehouse}; promised ${formatDay(input.promisedDeliveryDate)}.`
+        : `${input.orderCode}: ${item}; no receipt scheduled before the ${formatDay(input.promisedDeliveryDate)} promise date.`;
     return [{
       quoteId: input.quoteId,
       code: input.code,
@@ -154,10 +211,14 @@ export function deliverySlippage(inputs: SlippageInput[], dismissedKeys?: Readon
       rep: input.rep,
       ownerId: input.ownerId,
       kind: "DELIVERY_SLIPPAGE" as const,
-      severity: nextReceipt ? "medium" as const : "high" as const,
+      severity: coverage.status === "missing" ? "high" as const : "medium" as const,
       reason,
       flaggedSince: input.backorderCreatedAt,
       insufficientHistory: false,
+      orderCode: input.orderCode,
+      productId: input.productId,
+      variantId: input.variantId,
+      neededQty: coverage.uncovered || input.qty,
     }];
   });
 }

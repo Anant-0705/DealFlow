@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireCustomer } from "@/lib/auth";
 import { listCustomerInvoices } from "@/modules/billing/queries";
 import { formatMoney } from "@/lib/money";
+import { invoiceRemainingPaise } from "@/modules/billing/invoice-balance";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 
 export default async function PortalInvoicesPage() {
@@ -24,7 +25,7 @@ export default async function PortalInvoicesPage() {
             </thead>
             <tbody>
               {invoices.map((invoice) => {
-                const balance = invoice.totalPaise - invoice.paidPaise;
+                const balance = invoiceRemainingPaise(invoice);
                 return (
                   <tr key={invoice.id}>
                     <td><Link href={`/portal/invoices/${invoice.code}`}>{invoice.code}</Link></td>

@@ -10,6 +10,7 @@ import {
   paymentMethodLabel,
 } from "@/lib/cashfree";
 import { applyInvoicePayment } from "./apply-payment";
+import { invoiceRemainingPaise } from "./invoice-balance";
 import { canPayInvoice, type PaymentActor } from "./payment-access";
 
 export async function cashfreeGatewayStatus() {
@@ -20,13 +21,13 @@ export async function startCashfreeCheckout(invoiceCode: string, actor: PaymentA
   if (!isCashfreeConfigured()) throw new Error("Cashfree is not configured on this server.");
   const invoice = await prisma.invoice.findUnique({
     where: { code: invoiceCode },
-    include: { order: { include: { quote: { include: { customer: true } } } } },
+    include: { creditNotes: { select: { amountPaise: true } }, order: { include: { quote: { include: { customer: true } } } } },
   });
   if (!invoice) throw new Error("Invoice not found.");
   if (!canPayInvoice(actor, invoice.order.quote.customerId)) {
     throw new Error("You do not have permission to pay this invoice.");
   }
-  const balance = invoice.totalPaise - invoice.paidPaise;
+  const balance = invoiceRemainingPaise(invoice);
   if (balance <= 0) throw new Error("This invoice is already paid.");
   // Keep the document query out of the settlement dependency graph so the
   // reconciliation smoke script can run outside the Next.js runtime.

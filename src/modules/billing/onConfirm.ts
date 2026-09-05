@@ -2,6 +2,8 @@ import type { Prisma } from "@/generated/prisma/client";
 import { nextInvoiceCode } from "@/lib/codes";
 import { logEvent } from "@/lib/audit";
 import { calendarPeriod, prorate } from "./prorate";
+import { taxOnNet } from "./invoice-balance";
+import { ensureUpcomingPeriods, recordInvoicedPeriod } from "./periods";
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86_400_000);
 
@@ -59,7 +61,7 @@ export async function generateInitialBilling(
     await logEvent(db, { entity: "SUBSCRIPTION", entityId: subscription.id, quoteId: input.quoteId, action: "SUBSCRIPTION_CREATED", actorId: input.actorId, reason: `${line.product.name} subscription created.` });
 
     const first = prorate({ unitAmountPaise: unitPricePaise, qtyDelta: line.qty, effectiveDate: input.confirmedAt, periodStart: period.periodStart, periodEnd: period.periodEnd, prorateChanges: true });
-    const taxPaise = Math.round(first.amountPaise * line.product.taxBps / 10_000);
+    const taxPaise = taxOnNet(first.amountPaise, line.product.taxBps);
     const code = await nextInvoiceCode(db);
     const invoice = await db.invoice.create({ data: {
       code,
@@ -73,6 +75,8 @@ export async function generateInitialBilling(
       lines: { create: { orderLineId: line.id, description: `${line.product.name} · ${first.reason}`, qty: line.qty, unitPaise: unitPricePaise, taxPaise, totalPaise: first.amountPaise + taxPaise } },
     } });
     invoiceIds.push(invoice.id);
+    await recordInvoicedPeriod(db, { subscription: { ...subscription, plan }, periodStart: period.periodStart, periodEnd: period.periodEnd, invoiceId: invoice.id, taxBps: line.product.taxBps });
+    await ensureUpcomingPeriods(db, { ...subscription, plan }, line.product.taxBps);
     await logEvent(db, { entity: "INVOICE", entityId: invoice.id, quoteId: input.quoteId, action: "INVOICE_ISSUED", actorId: input.actorId, reason: `${code} issued for the first recurring period.`, meta: { proration: first } });
   }
   return { invoiceIds, subscriptionIds };

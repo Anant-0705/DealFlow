@@ -57,6 +57,22 @@ export function prorate(input: ProrationInput): ProrationResult {
   return { amountPaise, daysRemaining, daysInPeriod, reason };
 }
 
+export function dueBillingPeriods(
+  nextBillingAt: Date | string,
+  asOf: Date | string,
+  interval: "MONTHLY" | "QUARTERLY" | "YEARLY",
+  maxPeriods = 24,
+) {
+  const periods: Array<ReturnType<typeof calendarPeriod>> = [];
+  let cursor = nextBillingAt;
+  while (dateOnly(cursor) <= dateOnly(asOf) && periods.length < maxPeriods) {
+    const period = calendarPeriod(cursor, interval);
+    periods.push(period);
+    cursor = period.nextBillingAt;
+  }
+  return periods;
+}
+
 export function calendarPeriod(date: Date | string, interval: "MONTHLY" | "QUARTERLY" | "YEARLY") {
   const source = new Date(dateOnly(date));
   const months = interval === "MONTHLY" ? 1 : interval === "QUARTERLY" ? 3 : 12;

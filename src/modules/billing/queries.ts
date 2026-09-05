@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { upcomingSchedule } from "./schedule";
+import { upcomingSchedule, upcomingScheduleFromPeriods } from "./schedule";
 import { calendarPeriod, prorate } from "./prorate";
 
 export async function listSubscriptions() {
@@ -16,12 +16,20 @@ export async function getBillingOrder(code: string) {
     include: {
       quote: { include: { customer: true } },
       lines: { include: { product: true, quoteLine: true } },
-      subscriptions: { include: { plan: true, orderLine: { include: { product: true } }, changes: { orderBy: { effectiveAt: "desc" } } } },
+      subscriptions: { include: { plan: true, orderLine: { include: { product: true } }, changes: { orderBy: { effectiveAt: "desc" } }, billingPeriods: { orderBy: { periodStart: "asc" } } } },
       invoices: { include: { lines: true, payments: true, creditNotes: true }, orderBy: { issuedAt: "desc" } },
     },
   });
   if (!order) return null;
-  return { order, schedules: order.subscriptions.map((subscription) => ({ subscriptionId: subscription.id, rows: upcomingSchedule(subscription, 3) })) };
+  return {
+    order,
+    schedules: order.subscriptions.map((subscription) => ({
+      subscriptionId: subscription.id,
+      rows: subscription.billingPeriods.length
+        ? upcomingScheduleFromPeriods(subscription.billingPeriods)
+        : upcomingSchedule(subscription, 3),
+    })),
+  };
 }
 
 export function listCustomerInvoices(customerId: number) {

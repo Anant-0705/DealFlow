@@ -1,4 +1,4 @@
-const labels: Record<string, string> = { PORTAL_MESSAGE: "Message", COUNTER_PROPOSED: "Counter-offer", SPLIT_ACCEPTED: "Warehouse split", BACKORDER_CONSOLIDATED: "Backorder consolidated", PAYMENT_RECORDED: "Payment", INVOICE_ISSUED: "Invoice", SUBSCRIPTION_CREATED: "Subscription" };
+const labels: Record<string, string> = { PORTAL_MESSAGE: "Message", COUNTER_PROPOSED: "Counter-offer", SPLIT_ACCEPTED: "Warehouse split", BACKORDER_CONSOLIDATED: "Backorder consolidated", PAYMENT_RECORDED: "Payment", INVOICE_ISSUED: "Invoice", SUBSCRIPTION_CREATED: "Subscription", UPSELL_ADDED: "Upsell added", CROSS_SELL_ADDED: "Cross-sell added", UPSELL_DISMISSED: "Upsell dismissed", CROSS_SELL_DISMISSED: "Cross-sell dismissed" };
 
 export function DealTimeline({ events }: { events: Array<{ id: number; action: string; actor: string; at: Date; reason: string | null; meta: unknown }> }) {
   if (!events.length) return <div className="empty-note">No activity yet.</div>;

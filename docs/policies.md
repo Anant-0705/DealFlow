@@ -4,7 +4,7 @@
 2. Any line above its allowed ceiling requires Sales Manager approval.
 3. Finance follows the manager when the maximum line excess is at least 8 points, blended excess is at least 3%, or excess discount value is at least ₹5,000.
 4. New quote lines begin with the customer tier default—Bronze 5%, Silver 10%, Gold 15%—and remain editable. Catalog price lists are retained as reference configuration and are not applied a second time.
-5. Upsell suggestions must meet the configured 20% margin floor and are ranked by pairing strength and promotion status.
+5. Offer suggestions must meet the configured 20% margin floor. Settings pairings are tagged upsell or cross-sell; same-product variant upgrades are always upsell. Ranking uses pairing weight, co-purchase evidence, and promotion status.
 6. One-time order lines are invoiced when the customer confirms and are due in 15 days.
 7. Recurring lines bill in calendar periods. The first period and mid-period quantity changes are prorated by inclusive calendar days and rounded to paise.
 8. Cancellation credits unused days only when the subscription plan enables `creditOnCancel`. An unpaid invoice is reduced; paid invoices retain a customer credit note.

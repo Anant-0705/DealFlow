@@ -10,6 +10,7 @@ import { INTERNAL_ROLES, QUOTE_EDITOR_ROLES } from "@/lib/roles";
 import { logEvent } from "@/lib/audit";
 import { evaluateRevision } from "@/modules/pricing/engine";
 import { draftSchema, type DraftInput } from "./schemas";
+import { parseDismissed, withDismissed, type OfferKind, type OfferMode } from "@/modules/upsell/suggest";
 
 async function resolveEvaluation(input: DraftInput) {
   const quote = await prisma.quote.findUniqueOrThrow({ where: { id: input.quoteId }, include: { customer: true, currentRevision: true } });
@@ -53,7 +54,18 @@ async function persistDraft(input: DraftInput, actorId: number, canOverrideOwner
       else if (previous.qty !== line.qty || previous.lineDiscountBps !== line.lineDiscountBps) await logEvent(tx, { entity: "REVISION", entityId: quote.currentRevisionId!, quoteId: quote.id, action: "LINE_UPDATED", actorId, reason: "Quote line updated", meta: { before: { qty: previous.qty, lineDiscountBps: previous.lineDiscountBps }, after: line } });
     }
     for (const [lineKey, line] of beforeMap) if (!afterMap.has(lineKey)) await logEvent(tx, { entity: "REVISION", entityId: quote.currentRevisionId!, quoteId: quote.id, action: "LINE_REMOVED", actorId, reason: "Quote line removed", meta: { before: { productId: line.productId, variantId: line.variantId, qty: line.qty, lineDiscountBps: line.lineDiscountBps } } });
-    if (input.auditAction === "UPSELL_ADDED") await logEvent(tx, { entity: "REVISION", entityId: quote.currentRevisionId!, quoteId: quote.id, action: "UPSELL_ADDED", actorId, reason: "Accepted an upsell suggestion", meta: { productId: input.upsellProductId } });
+    if (input.auditAction === "UPSELL_ADDED" || input.auditAction === "CROSS_SELL_ADDED") {
+      const productId = input.offerProductId ?? input.upsellProductId;
+      await logEvent(tx, {
+        entity: "REVISION",
+        entityId: quote.currentRevisionId!,
+        quoteId: quote.id,
+        action: input.auditAction,
+        actorId,
+        reason: input.auditAction === "CROSS_SELL_ADDED" ? "Accepted a cross-sell suggestion" : "Accepted an upsell suggestion",
+        meta: { productId, variantId: input.offerVariantId ?? null },
+      });
+    }
     if (input.orderDiscountBps !== quote.currentRevision?.orderDiscountBps) await logEvent(tx, { entity: "REVISION", entityId: quote.currentRevisionId!, quoteId: quote.id, action: "ORDER_DISCOUNT_CHANGED", actorId, meta: { before: quote.currentRevision?.orderDiscountBps ?? 0, after: input.orderDiscountBps } });
   });
   return evaluation;
@@ -119,16 +131,25 @@ export async function reviseQuote(quoteId: number) {
   return { ok: true, version: next.version };
 }
 
-export async function dismissUpsell(revisionId: number, productId: number) {
+export async function dismissOffer(revisionId: number, offer: { kind: OfferKind; mode: OfferMode; productId: number; variantId?: number | null }) {
   const session = await requireRole(QUOTE_EDITOR_ROLES);
   z.number().int().positive().parse(revisionId);
-  z.number().int().positive().parse(productId);
+  z.number().int().positive().parse(offer.productId);
   const revision = await prisma.quoteRevision.findUniqueOrThrow({ where: { id: revisionId }, include: { quote: true } });
   if (session.role !== "ADMIN" && revision.quote.ownerId !== session.userId) throw new Error("Only the quote owner can dismiss suggestions.");
-  const current = Array.isArray(revision.dismissedUpsellIds) ? revision.dismissedUpsellIds.filter((id): id is number => typeof id === "number") : [];
+  const dismissed = withDismissed(parseDismissed(revision.dismissedUpsellIds), offer);
+  const action = offer.kind === "CROSS_SELL" ? "CROSS_SELL_DISMISSED" : "UPSELL_DISMISSED";
   await prisma.$transaction(async (tx) => {
-    await tx.quoteRevision.update({ where: { id: revisionId }, data: { dismissedUpsellIds: [...new Set([...current, productId])] } });
-    await logEvent(tx, { entity: "REVISION", entityId: revisionId, quoteId: revision.quoteId, action: "UPSELL_DISMISSED", actorId: session.userId, reason: "Upsell suggestion dismissed", meta: { productId } });
+    await tx.quoteRevision.update({ where: { id: revisionId }, data: { dismissedUpsellIds: dismissed } });
+    await logEvent(tx, {
+      entity: "REVISION",
+      entityId: revisionId,
+      quoteId: revision.quoteId,
+      action,
+      actorId: session.userId,
+      reason: offer.mode === "UPGRADE" ? "Upgrade suggestion dismissed" : offer.kind === "CROSS_SELL" ? "Cross-sell suggestion dismissed" : "Upsell suggestion dismissed",
+      meta: offer,
+    });
   });
   revalidatePath("/app/quotations");
   return { ok: true };

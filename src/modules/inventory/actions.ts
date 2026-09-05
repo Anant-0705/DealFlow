@@ -8,6 +8,12 @@ import { receiptSchema, stockSchema, warehouseSchema } from "./schemas";
 import { reserveSuggestedAllocations, lockProductStock } from "./reserve";
 import { findConsolidatableBackorders } from "./receipts";
 
+async function requireMatchingVariant(tx: Parameters<typeof logEvent>[0], productId: number, variantId: number | null) {
+  if (variantId === null) return;
+  const variant = await tx.productVariant.findFirst({ where: { id: variantId, productId }, select: { id: true } });
+  if (!variant) throw new Error("The selected variant does not belong to this product.");
+}
+
 export async function saveWarehouse(formData: FormData) {
   const session = await requireRole(["ADMIN"]); const value = warehouseSchema.parse(formObject(formData));
   const data = { name: value.name, code: value.code, shippingCostWeightPaise: Math.round(value.shippingCostRupees * 100), replenishmentLeadDays: value.replenishmentLeadDays, active: value.active };
@@ -18,6 +24,7 @@ export async function saveWarehouse(formData: FormData) {
 export async function saveStock(formData: FormData) {
   const session = await requireRole(["ADMIN"]); const value = stockSchema.parse(formObject(formData));
   await prisma.$transaction(async (tx) => {
+    await requireMatchingVariant(tx, value.productId, value.variantId);
     const existing = await tx.stock.findFirst({ where: { warehouseId: value.warehouseId, productId: value.productId, variantId: value.variantId } });
     if (existing && value.onHand < existing.reserved) {
       throw new Error(`On-hand stock cannot be lower than the ${existing.reserved} units already reserved.`);
@@ -89,6 +96,7 @@ export async function recordStockReceipt(formData: FormData) {
   const session = await requireRole(["FINANCE", "ADMIN"]);
   const value = receiptSchema.parse({ warehouseId: formData.get("warehouseId"), productId: formData.get("productId"), variantId: formData.get("variantId"), qty: formData.get("qty"), receiptId: formData.get("receiptId") });
   const orderCodes = await prisma.$transaction(async (tx) => {
+    await requireMatchingVariant(tx, value.productId, value.variantId);
     await lockProductStock(tx, value.productId);
     const stock = await tx.stock.findFirst({ where: { warehouseId: value.warehouseId, productId: value.productId, variantId: value.variantId } });
     const row = stock ? await tx.stock.update({ where: { id: stock.id }, data: { onHand: { increment: value.qty } } }) : await tx.stock.create({ data: { warehouseId: value.warehouseId, productId: value.productId, variantId: value.variantId, onHand: value.qty, reserved: 0 } });

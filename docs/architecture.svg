@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <rect width="1600" height="1000" fill="#f5ebe0"/>
+  <style>text{font-family:Arial,sans-serif;fill:#2a211d}.title{font-size:38px;font-weight:700}.sub{font-size:17px;fill:#715f55}.box{fill:#fffaf5;stroke:#b79b8c;stroke-width:2}.engine{fill:#e2f0e7;stroke:#5f8069;stroke-width:3}.head{font-size:20px;font-weight:700}.small{font-size:14px;fill:#695b53}.group{fill:#eadbd2;stroke:#c5aa9b;stroke-width:2}.arrow{stroke:#80695e;stroke-width:2;fill:none;marker-end:url(#arrow)}</style>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#80695e"/></marker></defs>
+  <text x="60" y="62" class="title">AccordFlow — Phase 3 architecture</text>
+  <text x="60" y="92" class="sub">Quote-to-cash that shows its work · Next.js + Prisma + PostgreSQL · deterministic engines in green</text>
+  <rect x="60" y="130" rx="16" width="210" height="90" class="box"/><text x="82" y="165" class="head">Identity &amp; roles</text><text x="82" y="194" class="small">sessions · role guards</text>
+  <rect x="310" y="130" rx="16" width="230" height="90" class="box"/><text x="332" y="165" class="head">Catalog &amp; policy</text><text x="332" y="194" class="small">products · thresholds</text>
+  <rect x="590" y="130" rx="16" width="230" height="90" class="box"/><text x="612" y="165" class="head">Quotes &amp; revisions</text><text x="612" y="194" class="small">immutable snapshots</text>
+  <rect x="870" y="130" rx="16" width="220" height="90" class="engine"/><text x="892" y="165" class="head">Pricing engine</text><text x="892" y="194" class="small">risk · margin · route</text>
+  <rect x="1140" y="130" rx="16" width="250" height="90" class="box"/><text x="1162" y="165" class="head">Approvals &amp; audit</text><text x="1162" y="194" class="small">steps · reasons · timeline</text>
+  <path d="M270 175H310M540 175H590M820 175H870M1090 175H1140" class="arrow"/>
+  <rect x="200" y="285" rx="16" width="240" height="90" class="box"/><text x="222" y="320" class="head">Customer portal</text><text x="222" y="349" class="small">send · counter · confirm</text>
+  <rect x="510" y="285" rx="16" width="250" height="90" class="box"/><text x="532" y="320" class="head">Orders &amp; fulfillment</text><text x="532" y="349" class="small">splits · backorders</text>
+  <rect x="830" y="285" rx="16" width="220" height="90" class="engine"/><text x="852" y="320" class="head">Allocation engine</text><text x="852" y="349" class="small">stock-aware plan</text>
+  <rect x="1120" y="285" rx="16" width="220" height="90" class="box"/><text x="1142" y="320" class="head">Billing</text><text x="1142" y="349" class="small">invoices · payments</text>
+  <rect x="1120" y="430" rx="16" width="220" height="90" class="engine"/><text x="1142" y="465" class="head">Proration engine</text><text x="1142" y="494" class="small">calendar-day math</text>
+  <rect x="510" y="430" rx="16" width="540" height="90" class="box"/><text x="532" y="465" class="head">Phase 3 intelligence &amp; delivery</text><text x="532" y="494" class="small">dashboard · health rules · tasks · reports · XLSX · print PDF</text>
+  <path d="M1265 220V252H320V285M440 330H510M760 330H830M1050 330H1120M1230 375V430M1140 220V475H1050" class="arrow"/>
+  <text x="60" y="590" class="title">Data model</text>
+  <rect x="60" y="625" rx="16" width="270" height="245" class="group"/><text x="82" y="660" class="head">Identity</text><text x="82" y="695" class="small">User</text><text x="82" y="722" class="small">Customer</text><text x="82" y="749" class="small">CustomerInvite</text><text x="82" y="776" class="small">Task → Quote, assignee</text>
+  <rect x="365" y="625" rx="16" width="360" height="245" class="group"/><text x="387" y="660" class="head">Deal &amp; governance</text><text x="387" y="695" class="small">Quote 1 → n QuoteRevision</text><text x="387" y="722" class="small">QuoteRevision 1 → n QuoteLine</text><text x="387" y="749" class="small">QuoteRevision 1 → n ApprovalStep</text><text x="387" y="776" class="small">Quote 1 → n AuditEvent</text><text x="387" y="803" class="small">Quote 1 → n PortalMessage</text>
+  <rect x="760" y="625" rx="16" width="350" height="245" class="group"/><text x="782" y="660" class="head">Execution</text><text x="782" y="695" class="small">Order → confirmed Revision</text><text x="782" y="722" class="small">Order 1 → n OrderLine</text><text x="782" y="749" class="small">OrderLine 1 → n Allocation</text><text x="782" y="776" class="small">OrderLine 1 → n Backorder</text><text x="782" y="803" class="small">StockReceipt → product + warehouse</text>
+  <rect x="1145" y="625" rx="16" width="395" height="245" class="group"/><text x="1167" y="660" class="head">Billing</text><text x="1167" y="695" class="small">Order 1 → n Subscription</text><text x="1167" y="722" class="small">Subscription 1 → n Change</text><text x="1167" y="749" class="small">Order 1 → n Invoice</text><text x="1167" y="776" class="small">Invoice 1 → n Payment</text><text x="1167" y="803" class="small">Invoice 1 → n CreditNote</text>
+  <path d="M330 745H365M725 745H760M1110 745H1145" class="arrow"/>
+  <text x="60" y="930" class="sub">Status tracks: Approval · Customer · Fulfillment · Payment</text>
+  <text x="60" y="958" class="sub">Every mutation → AuditEvent → Timeline / Dashboard / Reports</text>
+</svg>

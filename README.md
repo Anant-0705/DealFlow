@@ -1,24 +1,22 @@
 # AccordFlow (DealFlow360)
 
-AccordFlow is an explainable, self-governing sales-operations platform. The implemented workflow now covers the governed deal core plus Phase 2 execution: credentials auth, role protection, configuration CRUD, snapshot quote revisions, live pricing and margin, manager/finance routing, a customer-scoped negotiation portal, stale-safe confirmation, warehouse splits and backorders, subscriptions and proration, invoices, credits, payments, and a complete deal timeline.
+**AccordFlow — quote-to-cash that shows its work.** AccordFlow is an offline-capable sales-operations workspace that turns a quotation into an approved, customer-confirmed, stock-aware, billed, and auditable deal. Deterministic pricing, approval, allocation, and proration engines explain every result; Phase 3 adds role-aware dashboards, deal-health alerts, operational tasks, reports, XLSX downloads, print-to-PDF views, and repeatable demo reset.
 
 ## Run locally
 
-Prerequisites: Node 20+ and Docker. For a fresh clone, one command installs dependencies, starts Postgres, rebuilds the local database, and seeds the full demo:
+Prerequisites: Node.js 20+, npm, and Docker Desktop.
 
 ```bash
-npm run setup
-```
-
-Then start the workspace:
-
-```bash
+git clone https://github.com/Anant-0705/DealFlow.git
+cd DealFlow
+copy .env.example .env
+docker compose up -d postgres
+npm install
+npm run db:reset
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
-`db:reset` replaces all local DealFlow records and recreates the demo story. Use it only with the local development database.
+Open [http://localhost:3000](http://localhost:3000). To run the complete app in Docker, use `docker compose up --build`. `npm run db:reset` and Settings → System → Reset Demo Data delete all current DealFlow records before recreating the seed; use them only with the demo database.
 
 ## Demo credentials
 
@@ -32,6 +30,17 @@ Every seeded account uses password `demo1234`.
 | Sales Rep | `ravi@accordflow.demo` |
 | Sales Rep | `priya@accordflow.demo` |
 | Acme customer | `buyer@acme.demo` |
+| Beta customer | `buyer@beta.demo` |
+| Nova customer | `buyer@nova.demo` |
+
+Customer self-registration is closed. Administrators and managers create customer companies and portal invitations from Settings → Customers.
+
+## Demo flows
+
+1. Clean flow: Ravi creates an Acme quote, confirms its policy route, sends it, the customer confirms, Operations accepts the stock split, and Finance records payment.
+2. Messy flow: a high-discount quote goes through Manager and Finance, the customer counters, a revised version is approved, a backorder slips, and billing creates proration and credit records.
+
+The exact timed clicks and reset instructions are in [docs/demo-script.md](docs/demo-script.md).
 
 ## Verification
 
@@ -41,19 +50,25 @@ npm run lint
 npm run build
 ```
 
-The pricing suite covers the PDF example, blended/value finance routing, compounded discounts, tier-vs-category precedence, hidden service breaches, and empty revisions.
+The test suite covers authentication helpers, pricing and approval routing, stock allocation, billing dates, proration, and all three deal-health rules.
 
-## End-to-end demo path
+## Documentation
 
-1. Sign in as Ravi and create an Acme Corp quote.
-2. Add Laptop Pro 14 at 12% and Onsite Setup Service at 18%.
-3. Observe the live 8-point Services breach and Manager → Finance route before submitting.
-4. Submit; sign in as the manager and approve with a reason.
-5. Sign in as Finance, approve, and verify the Approved Kanban column and audit trail.
-6. Send the approved quote to the customer, counter from the customer portal, and approve the new revision.
-7. Confirm the latest revision to create an order, one-time invoice, and recurring subscription records.
-8. Accept the live warehouse split, record receipts, and consolidate any remaining backorder.
-9. Modify or cancel a subscription to see proration and credit math before saving.
-10. Record an invoice payment and inspect the complete deal timeline.
+- [Architecture and data model](docs/architecture.md)
+- [Architecture image](docs/architecture.png)
+- [Business policies](docs/policies.md)
+- [Demo script](docs/demo-script.md)
+- [Judge Q&A](docs/judge-qa.md)
+- [What comes next](docs/whats-next.md)
 
-Business thresholds are documented in [docs/policies.md](docs/policies.md). Phase 3 deal-health and reporting routes remain intentionally isolated from the complete transactional flow.
+## Contributors
+
+Repository contributors are `satvik-svg`, `aaditya3301`, and `Anant-0705`. Exact ownership and review history are preserved in `git log`; no authorship has been inferred beyond the repository evidence.
+
+## Known limitations
+
+- Email, Slack, and WhatsApp notifications are represented by in-app tasks and audit records; no external provider is connected.
+- PDF export uses the browser’s print renderer and an A4 print stylesheet, not a server-side PDF service.
+- Billing runs are user-triggered rather than scheduled by a worker or cron service.
+- Currency and company scope are currently INR and one workspace.
+- Deal-health rules run when the page/dashboard loads; a large deployment should precompute them asynchronously.

@@ -58,7 +58,7 @@ export default async function QuotePage({
         {quote.currentRevision.createdVia === "PORTAL" && <form action={acceptCounter}><input type="hidden" name="quoteCode" value={quote.code}/><Button variant="secondary">Accept counter</Button></form>}
         {quote.orders[0] && <Link className={buttonVariants({ variant: "outline" })} href={`/app/fulfillment/${quote.orders[0].code}`}>Open {quote.orders[0].code}</Link>}
       </div>
-      <QuoteBuilder quote={safeQuote} products={data.products} policy={data.policy} priceLists={data.priceLists} pairings={data.pairings} stock={data.stock} warehouses={data.warehouses} previewDate={previewDate} canEdit={canEdit}/>
+      <QuoteBuilder quote={safeQuote} products={data.products} policy={data.policy} pairings={data.pairings} stock={data.stock} warehouses={data.warehouses} previewDate={previewDate} canEdit={canEdit}/>
       {diff && <RevisionDiff diff={diff}/>}
     </>}
 

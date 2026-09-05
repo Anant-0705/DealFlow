@@ -13,9 +13,8 @@ import { draftSchema, type DraftInput } from "./schemas";
 
 async function resolveEvaluation(input: DraftInput) {
   const quote = await prisma.quote.findUniqueOrThrow({ where: { id: input.quoteId }, include: { customer: true, currentRevision: true } });
-  const [policy, priceList, products] = await Promise.all([
+  const [policy, products] = await Promise.all([
     prisma.discountPolicy.findUniqueOrThrow({ where: { id: 1 } }),
-    prisma.priceList.findUniqueOrThrow({ where: { tier: quote.customer.tier } }),
     prisma.product.findMany({ where: { id: { in: input.lines.map((line) => line.productId) } }, include: { category: true, variants: true } }),
   ]);
   const map = new Map(products.map((product) => [product.id, product]));
@@ -25,8 +24,7 @@ async function resolveEvaluation(input: DraftInput) {
     const variant = line.variantId ? product.variants.find((item) => item.id === line.variantId) : null;
     if (line.variantId && !variant) throw new Error("The selected variant does not belong to this product.");
     const listPrice = product.listPricePaise + (variant?.extraPricePaise ?? 0);
-    const unitPricePaise = Math.round(listPrice * (10_000 - (priceList.rule === "PERCENT_OFF" ? priceList.valueBps : 0)) / 10_000);
-    return { key: `${product.id}:${variant?.id ?? "base"}`, description: product.name, categoryId: product.categoryId, categoryName: product.category.name, categoryCeilingBps: product.category.discountCeilingBps, qty: line.qty, unitPricePaise, unitCostPaise: product.costPaise, taxBps: product.taxBps, lineDiscountBps: line.lineDiscountBps, productId: product.id, variantId: variant?.id ?? null };
+    return { key: `${product.id}:${variant?.id ?? "base"}`, description: product.name, categoryId: product.categoryId, categoryName: product.category.name, categoryCeilingBps: product.category.discountCeilingBps, qty: line.qty, unitPricePaise: listPrice, unitCostPaise: product.costPaise, taxBps: product.taxBps, lineDiscountBps: line.lineDiscountBps, productId: product.id, variantId: variant?.id ?? null };
   });
   const evaluation = evaluateRevision({ customerTier: quote.customer.tier, policy, orderDiscountBps: input.orderDiscountBps, lines: trustedLines });
   return { quote, evaluation, trustedLines };

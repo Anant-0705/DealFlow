@@ -19,14 +19,13 @@ export function getQuoteDetail(code: string) {
 export const listForKanban = listQuotes;
 
 export async function getBuilderData() {
-  const [customers, products, policy, priceLists, pairings, stock, warehouses] = await Promise.all([
+  const [customers, products, policy, pairings, stock, warehouses] = await Promise.all([
     prisma.customer.findMany({ orderBy: { name: "asc" } }),
     prisma.product.findMany({ where: { active: true }, include: { category: true, variants: true, plan: true }, orderBy: [{ category: { name: "asc" } }, { name: "asc" }] }),
     prisma.discountPolicy.findUniqueOrThrow({ where: { id: 1 } }),
-    prisma.priceList.findMany(),
     prisma.productPairing.findMany({ include: { suggestedProduct: { include: { category: true, variants: true, plan: true } } } }),
     prisma.stock.findMany({ select: { warehouseId: true, productId: true, variantId: true, onHand: true, reserved: true } }),
     prisma.warehouse.findMany({ where: { active: true }, select: { id: true, name: true, shippingCostWeightPaise: true } }),
   ]);
-  return { customers, products, policy, priceLists, pairings, stock, warehouses };
+  return { customers, products, policy, pairings, stock, warehouses };
 }

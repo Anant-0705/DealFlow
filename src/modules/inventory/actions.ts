@@ -66,20 +66,28 @@ export async function manualOverride(formData: FormData) {
     if (order.lines.some((line) => line.allocations.length)) throw new Error("This order already has reserved allocations.");
     for (const productId of [...new Set(order.lines.map((line) => line.productId))]) await lockProductStock(tx, productId);
     const before = await tx.stock.findMany({ where: { productId: { in: order.lines.map((line) => line.productId) } } });
+    const remaining = new Map(before.map((item) => [item.id, Math.max(0, item.onHand - item.reserved)]));
     const requested = [...formData.entries()].filter(([key]) => key.startsWith("alloc:")).map(([key, value]) => {
       const [, lineId, warehouseId] = key.split(":");
       return { lineId: Number(lineId), warehouseId: Number(warehouseId), qty: Math.max(0, Math.floor(Number(value) || 0)) };
     }).filter((row) => row.qty > 0);
-    for (const line of order.lines) {
-      if (line.product.isSubscription || line.product.category.name.toLowerCase() === "services") continue;
+    const stockLines = order.lines.filter((line) => !line.product.isSubscription && line.product.category.name.toLowerCase() !== "services");
+    const stockLineIds = new Set(stockLines.map((line) => line.id));
+    if (requested.some((row) => !stockLineIds.has(row.lineId))) throw new Error("Manual allocation contains an invalid order line.");
+    const requestedWarehouseIds = [...new Set(requested.map((row) => row.warehouseId))];
+    const activeWarehouses = await tx.warehouse.findMany({ where: { id: { in: requestedWarehouseIds }, active: true }, select: { id: true, name: true } });
+    const warehouseMap = new Map(activeWarehouses.map((warehouse) => [warehouse.id, warehouse]));
+    if (warehouseMap.size !== requestedWarehouseIds.length) throw new Error("Manual allocations must use active warehouses.");
+    for (const line of stockLines) {
       const rows = requested.filter((row) => row.lineId === line.id);
       if (rows.reduce((sum, row) => sum + row.qty, 0) > line.qty) throw new Error("Manual allocation exceeds the ordered quantity.");
       for (const row of rows) {
         const stock = before.find((item) => item.warehouseId === row.warehouseId && item.productId === line.productId && item.variantId === line.variantId);
-        const available = stock ? stock.onHand - stock.reserved : 0;
-        const warehouse = await tx.warehouse.findUniqueOrThrow({ where: { id: row.warehouseId } });
+        const available = stock ? remaining.get(stock.id) ?? 0 : 0;
+        const warehouse = warehouseMap.get(row.warehouseId)!;
         if (!stock || row.qty > available) throw new Error(`${warehouse.name} has only ${Math.max(0, available)} available.`);
         await tx.stock.update({ where: { id: stock.id }, data: { reserved: { increment: row.qty } } });
+        remaining.set(stock.id, available - row.qty);
         await tx.allocation.create({ data: { orderLineId: line.id, warehouseId: row.warehouseId, qty: row.qty, reserved: true, reason: "Manual allocation override." } });
       }
       const remainder = line.qty - rows.reduce((sum, row) => sum + row.qty, 0);

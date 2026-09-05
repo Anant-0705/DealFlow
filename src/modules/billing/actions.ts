@@ -9,6 +9,7 @@ import { nextCreditNoteCode, nextInvoiceCode } from "@/lib/codes";
 import { parseRupees } from "@/lib/money";
 import { calendarPeriod, prorate, subscriptionPeriod } from "./prorate";
 import { parseDateInput } from "./date-input";
+import { applyInvoicePayment } from "./apply-payment";
 
 async function applyCredit(tx: Parameters<typeof logEvent>[0], invoiceId: number, amountPaise: number, reason: string) {
   const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
@@ -132,21 +133,7 @@ export async function recordPayment(formData: FormData) {
   const receivedAt = parseDateInput(formData.get("receivedAt"));
   if (amountPaise <= 0 || !reference) throw new Error("Enter a positive amount and payment reference.");
   const outcome = await prisma.$transaction(async (tx) => {
-    const existing = await tx.payment.findUnique({ where: { reference } });
-    if (existing) return { duplicate: true };
-    const invoice = await tx.invoice.findUniqueOrThrow({ where: { code: invoiceCode }, include: { order: true } });
-    const balance = invoice.totalPaise - invoice.paidPaise;
-    if (amountPaise > balance) throw new Error(`Payment exceeds balance ₹${(balance / 100).toLocaleString("en-IN")}.`);
-    const payment = await tx.payment.create({ data: { invoiceId: invoice.id, amountPaise, reference, method, receivedAt, recordedById: session.userId } });
-    const paidPaise = invoice.paidPaise + amountPaise;
-    await tx.invoice.update({ where: { id: invoice.id }, data: { paidPaise, status: paidPaise === invoice.totalPaise ? "PAID" : "PARTIAL" } });
-    const invoices = await tx.invoice.findMany({ where: { orderId: invoice.orderId }, select: { id: true, totalPaise: true, paidPaise: true } });
-    const allPaid = invoices.every((row) => row.id === invoice.id ? paidPaise >= row.totalPaise : row.paidPaise >= row.totalPaise);
-    const anyPaid = invoices.some((row) => row.id === invoice.id ? paidPaise > 0 : row.paidPaise > 0);
-    const paymentStatus = allPaid ? "PAID" : anyPaid ? "PARTIAL" : "UNPAID";
-    await tx.quote.update({ where: { id: invoice.order.quoteId }, data: { paymentStatus, lastActivityAt: new Date() } });
-    await logEvent(tx, { entity: "PAYMENT", entityId: payment.id, quoteId: invoice.order.quoteId, action: "PAYMENT_RECORDED", actorId: session.userId, reason: `${reference} recorded against ${invoice.code}.`, meta: { amountPaise, method } });
-    return { duplicate: false };
+    return applyInvoicePayment(tx, { invoiceCode, amountPaise, reference, method, receivedAt, recordedById: session.userId });
   }, { isolationLevel: "Serializable" });
   redirect(`/app/invoices/${invoiceCode}?notice=${encodeURIComponent(outcome.duplicate ? "Payment already recorded" : "Payment recorded")}`);
 }

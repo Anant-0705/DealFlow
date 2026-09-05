@@ -16,5 +16,16 @@ services:
       timeout: 5s
       retries: 10
 
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-dealflow}:${POSTGRES_PASSWORD:-dealflow}@postgres:5432/${POSTGRES_DB:-dealflow}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:

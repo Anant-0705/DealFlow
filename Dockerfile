@@ -30,7 +30,12 @@ COPY --from=builder /app/public ./public
 RUN mkdir .next && chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+COPY docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
+RUN npm install prisma@7.10.0 dotenv
 
 USER nextjs
 EXPOSE 3000
-CMD ["node", "server.js"]
+ENTRYPOINT ["./docker-entrypoint.sh"]

@@ -1,0 +1,2 @@
+import { z } from "zod";
+export const policySchema = z.object({ tierCeilingBronze: z.coerce.number().min(0).max(100), tierCeilingSilver: z.coerce.number().min(0).max(100), tierCeilingGold: z.coerce.number().min(0).max(100), financeLineExcess: z.coerce.number().min(0).max(100), financeBlendedExcess: z.coerce.number().min(0).max(100), financeExcessValueRupees: z.coerce.number().min(0), staleAfterDays: z.coerce.number().int().min(0), anomalyDelta: z.coerce.number().min(0).max(100), upsellMarginFloor: z.coerce.number().min(0).max(100) });

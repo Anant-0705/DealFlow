@@ -147,7 +147,12 @@ export function LandingPage() {
 
       <section className="landing-access" id="access" aria-labelledby="access-title" data-landing-reveal><div className="section-heading"><p className="landing-kicker">Open the workspace</p><h2 id="access-title">Choose a role. Start inside the real flow.</h2><p>No signup funnel and no staged screenshots. These accounts use the application&apos;s real authentication path.</p></div><div className="demo-grid">{demoAccounts.map(([role, email, name], index) => <form action={login} className="demo-card" key={email}><input type="hidden" name="email" value={email} /><input type="hidden" name="password" value="demo1234" /><span className="demo-index">0{index + 1}</span><span className="demo-role">{role}</span><strong>{name}</strong><code>{email}</code><button type="submit">Enter workspace <ArrowRight data-icon="inline-end" /></button></form>)}</div></section>
 
-      <footer className="landing-footer"><div><strong>AccordFlow</strong><span>Quote-to-cash with an audit trail.</span></div><div><span>Next.js · Postgres · runs offline</span><span>What we didn&apos;t build: a black-box sales funnel.</span></div></footer>
+      <footer className="landing-footer">
+        <div>
+          <strong>AccordFlow</strong>
+          <span>Quote-to-cash with an audit trail.</span>
+        </div>
+      </footer>
     </main>
   );
 }

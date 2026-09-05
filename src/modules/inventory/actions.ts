@@ -19,6 +19,9 @@ export async function saveStock(formData: FormData) {
   const session = await requireRole(["ADMIN"]); const value = stockSchema.parse(formObject(formData));
   await prisma.$transaction(async (tx) => {
     const existing = await tx.stock.findFirst({ where: { warehouseId: value.warehouseId, productId: value.productId, variantId: value.variantId } });
+    if (existing && value.onHand < existing.reserved) {
+      throw new Error(`On-hand stock cannot be lower than the ${existing.reserved} units already reserved.`);
+    }
     const row = existing ? await tx.stock.update({ where: { id: existing.id }, data: { onHand: value.onHand } }) : await tx.stock.create({ data: { ...value, reserved: 0 } });
     await logEvent(tx, { entity: "STOCK", entityId: row.id, action: "SETTINGS_CHANGED", actorId: session.userId, reason: "On-hand stock updated", meta: { onHand: value.onHand } });
   });

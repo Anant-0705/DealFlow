@@ -1,2 +1,6 @@
-const tones: Record<string, string> = { APPROVED: "badge success", PAID: "badge success", PENDING: "badge warning", FINANCE: "badge danger", MANAGER: "badge warning", REJECTED: "badge danger", STALE: "badge muted", DRAFT: "badge muted", NONE: "badge muted", SENT: "badge info", CONFIRMED: "badge success" };
-export function StatusBadge({ status }: { status: string }) { return <span className={tones[status] ?? "badge info"}>{status.replaceAll("_", " ")}</span>; }
+import { Badge } from "@/components/ui/badge";
+
+type BadgeTone = "default" | "secondary" | "destructive" | "outline";
+const tones: Record<string, BadgeTone> = { APPROVED: "default", PAID: "default", PARTIAL: "secondary", UNPAID: "secondary", PENDING: "secondary", FINANCE: "destructive", MANAGER: "secondary", REJECTED: "destructive", STALE: "outline", DRAFT: "outline", NONE: "outline", SENT: "secondary", NEGOTIATING: "secondary", CONFIRMED: "default", ACTIVE: "default", CANCELLED: "outline", CREDITED: "secondary" };
+const labels: Record<string, string> = { NEGOTIATING: "Under Negotiation", ONE_TIME: "One-time" };
+export function StatusBadge({ status }: { status: string }) { return <Badge variant={tones[status] ?? "secondary"}>{labels[status] ?? status.replaceAll("_", " ")}</Badge>; }

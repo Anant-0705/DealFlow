@@ -2,6 +2,7 @@ import { SideNav } from "./SideNav";
 import { TopMenu } from "./TopMenu";
 import type { AppSession } from "@/lib/auth";
 import { hasRole, SETTINGS_ROLES } from "@/lib/roles";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export function AppShell({ session, pendingCount, children }: { session: AppSession; pendingCount: number; children: React.ReactNode }) {
   const roleLabel = { REP: "Sales Rep", MANAGER: "Sales Manager", FINANCE: "Finance", ADMIN: "Administrator", CUSTOMER: "Customer" }[session.role];
@@ -12,7 +13,7 @@ export function AppShell({ session, pendingCount, children }: { session: AppSess
       <header className="topbar"><div className="topbar-inner">
         <TopMenu canConfigure={hasRole(session.role, SETTINGS_ROLES)}/>
         <div className="identity" aria-label={`Signed in as ${session.name}, ${roleLabel}`}>
-          <span className="identity-avatar">{initials}<i/></span>
+          <span className="identity-avatar"><Avatar><AvatarFallback>{initials}</AvatarFallback></Avatar><i/></span>
           <div><strong>{session.name}</strong><small>{roleLabel}</small></div>
         </div>
       </div></header>

@@ -23,6 +23,7 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-dealflow}:${POSTGRES_PASSWORD:-dealflow}@postgres:5432/${POSTGRES_DB:-dealflow}
+      AUTH_SECRET: ${AUTH_SECRET:-local-docker-secret-change-before-production}
     depends_on:
       postgres:
         condition: service_healthy

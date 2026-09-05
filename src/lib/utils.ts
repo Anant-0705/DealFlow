@@ -1,1 +1,3 @@
-export { cn } from "cn"
+import { cn as mergeClasses } from "cn";
+
+export const cn: typeof mergeClasses = (...inputs) => mergeClasses(...inputs);

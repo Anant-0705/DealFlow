@@ -101,6 +101,24 @@ enum AuditAction {
   UPSELL_ADDED
   UPSELL_DISMISSED
   SETTINGS_CHANGED
+  PORTAL_MESSAGE
+  COUNTER_PROPOSED
+  SENT
+  COUNTER_ACCEPTED
+  CONFIRMED
+  ORDER_CREATED
+  INVOICE_ISSUED
+  SUBSCRIPTION_CREATED
+  SPLIT_ACCEPTED
+  SPLIT_OVERRIDDEN
+  STOCK_RECEIVED
+  BACKORDER_CONSOLIDATED
+  SHIPPED
+  SUBSCRIPTION_MODIFIED
+  SUBSCRIPTION_CANCELLED
+  BILLING_RUN
+  CREDIT_NOTE_ISSUED
+  PAYMENT_RECORDED
 }
 
 enum SubscriptionStatus {
@@ -530,6 +548,7 @@ model Allocation {
   qty         Int
   reserved    Boolean   @default(false)
   reason      String
+  shippedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

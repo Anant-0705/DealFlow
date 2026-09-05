@@ -278,6 +278,7 @@ model Product {
   plan           SubscriptionPlan? @relation(fields: [planId], references: [id])
   isPromoted     Boolean           @default(false)
   active         Boolean           @default(true)
+  imageUrl       String?
   variants       ProductVariant[]
   stock          Stock[]
   receipts       StockReceipt[]

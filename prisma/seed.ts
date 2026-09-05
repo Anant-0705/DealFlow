@@ -13,12 +13,6 @@ const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000);
 const daysFromNow = (days: number) => new Date(Date.now() + days * 86_400_000);
 
 async function main() {
-  const existingUsers = await client.user.count();
-  if (existingUsers > 0) {
-    console.log(`Seed skipped: database already contains ${existingUsers} user(s).`);
-    return;
-  }
-
   await client.$transaction(async (db) => {
   await db.$executeRawUnsafe(`DO $$ DECLARE r RECORD; BEGIN
     FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations') LOOP

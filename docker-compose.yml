@@ -24,7 +24,6 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-dealflow}:${POSTGRES_PASSWORD:-dealflow}@postgres:5432/${POSTGRES_DB:-dealflow}
       AUTH_SECRET: ${AUTH_SECRET:-local-docker-secret-change-before-production}
-      SEED_DATABASE: ${SEED_DATABASE:-true}
     depends_on:
       postgres:
         condition: service_healthy

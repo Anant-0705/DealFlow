@@ -24,8 +24,9 @@ export async function getBillingOrder(code: string) {
   return { order, schedules: order.subscriptions.map((subscription) => ({ subscriptionId: subscription.id, rows: upcomingSchedule(subscription, 3) })) };
 }
 
-export function listInvoices() {
+export function listInvoices(ownerId?: number, unpaidOnly = false) {
   return prisma.invoice.findMany({
+    where: { ...(unpaidOnly ? { status: { in: ["UNPAID" as const, "PARTIAL" as const] } } : {}), ...(ownerId ? { order: { quote: { ownerId } } } : {}) },
     include: { order: { include: { quote: { include: { customer: true } } } }, payments: true, creditNotes: true },
     orderBy: { issuedAt: "desc" },
   });

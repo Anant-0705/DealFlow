@@ -1,27 +1,28 @@
-/* eslint-disable react-hooks/purity */
 import Link from "next/link";
-import { ArrowRight, FileCheck2, FileText, Plus, ShieldAlert } from "lucide-react";
-import { prisma } from "@/lib/prisma";
+import { Boxes, CircleDollarSign, FileCheck2, FileText, IndianRupee, Plus, ShieldAlert } from "lucide-react";
 import { requireInternal } from "@/lib/auth";
 import { hasRole, QUOTE_EDITOR_ROLES } from "@/lib/roles";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { MyTasks } from "@/components/dashboard/MyTasks";
+import { getDashboardData } from "@/modules/dashboard/queries";
+import { formatMoney } from "@/lib/money";
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
   const session = await requireInternal();
   const canCreate = hasRole(session.role, QUOTE_EDITOR_ROLES);
-  const [{ notice }, pending, open, atRisk] = await Promise.all([
-    searchParams,
-    prisma.quote.count({ where: { approvalStatus: "PENDING" } }),
-    prisma.quote.count({ where: { customerStatus: { in: ["DRAFT", "SENT", "NEGOTIATING"] } } }),
-    prisma.quote.count({ where: { lastActivityAt: { lt: new Date(Date.now() - 5 * 86_400_000) }, customerStatus: { not: "CONFIRMED" } } }),
-  ]);
+  const [{ notice }, data] = await Promise.all([searchParams, getDashboardData(session)]);
 
   const metrics = [
-    { label: "Pending approvals", value: pending, description: "Waiting for a decision", icon: FileCheck2 },
-    { label: "Open quotations", value: open, description: "Active commercial work", icon: FileText },
-    { label: "At-risk deals", value: atRisk, description: "Idle more than 5 days", icon: ShieldAlert },
+    { label: "Pending approvals", value: data.metrics.pendingApprovals, description: "Waiting for a decision", icon: FileCheck2, href: session.role === "REP" ? "/app/quotations?status=pending" : "/app/approvals" },
+    { label: "Open quotations", value: data.metrics.openQuotations, description: "Active commercial work", icon: FileText, href: "/app/quotations?status=open" },
+    { label: "At-risk deals", value: data.metrics.atRiskDeals, description: "Stalls, anomalies, and slippage", icon: ShieldAlert, href: "/app/deal-health" },
+    { label: "Awaiting fulfillment", value: data.metrics.awaitingFulfillment, description: "Planned or partially allocated", icon: Boxes, href: "/app/fulfillment" },
+    { label: "Unpaid invoices", value: data.metrics.unpaidInvoices, description: `${formatMoney(data.metrics.unpaidBalancePaise)} outstanding`, icon: CircleDollarSign, href: "/app/invoices?status=unpaid" },
+    { label: "Revenue this month", value: formatMoney(data.metrics.revenueThisMonthPaise), description: "Payments received this month", icon: IndianRupee, href: "/app/reports?period=month" },
   ];
 
   return <div>
@@ -30,10 +31,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       {canCreate && <Link className={buttonVariants({ size: "lg" })} href="/app/quotations/new"><Plus data-icon="inline-start"/>New quotation</Link>}
     </div>
     {notice && <Alert><AlertTitle>Workspace notice</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert>}
-    <div className="stats-grid">{metrics.map(({ label, value, description, icon: Icon }) => <Card key={label}><CardHeader><CardTitle>{label}</CardTitle><CardDescription>{description}</CardDescription><CardAction><Icon aria-hidden="true"/></CardAction></CardHeader><CardContent><strong>{value}</strong></CardContent></Card>)}</div>
+    <div className="stats-grid dashboard-stats">{metrics.map((metric) => <StatCard key={metric.label} {...metric}/>)}</div>
     <div className="dashboard-grid">
-      <Card><CardHeader><CardTitle>From quote to cash</CardTitle><CardDescription>Every commercial decision stays explainable from the first draft through fulfillment and billing.</CardDescription></CardHeader><CardContent><ol className="operating-loop"><li><b>01</b><span><strong>Build</strong><small>Customer pricing, lines, margin and upsells</small></span></li><li><b>02</b><span><strong>Negotiate</strong><small>Messages and counter offers create traceable revisions</small></span></li><li><b>03</b><span><strong>Fulfill</strong><small>Stock-aware allocation exposes every shipment split</small></span></li><li><b>04</b><span><strong>Bill</strong><small>Invoices and subscriptions follow confirmed terms</small></span></li></ol></CardContent></Card>
-      <Card><CardHeader><CardTitle>Open the live pipeline</CardTitle><CardDescription>See every active quotation, approval path, and customer state in one view.</CardDescription></CardHeader><CardFooter><Link className={buttonVariants()} href="/app/pipeline">View pipeline<ArrowRight data-icon="inline-end"/></Link></CardFooter></Card>
+      <Card><CardHeader><CardTitle>Recent Activity</CardTitle><CardDescription>The latest auditable events across the deals you can see.</CardDescription></CardHeader><CardContent><RecentActivity events={data.recentActivity}/></CardContent></Card>
+      <Card><CardHeader><CardTitle>My Tasks</CardTitle><CardDescription>Nudges and escalations assigned directly to you.</CardDescription></CardHeader><CardContent><MyTasks tasks={data.tasks}/></CardContent></Card>
     </div>
+    <div className="dashboard-actions">{canCreate && <Link className={buttonVariants({ size: "lg" })} href="/app/quotations/new"><Plus data-icon="inline-start"/>New quotation</Link>}<Link className={buttonVariants({ variant: "outline", size: "lg" })} href={session.role === "REP" ? "/app/quotations?status=pending" : "/app/approvals"}>View approvals</Link></div>
   </div>;
 }

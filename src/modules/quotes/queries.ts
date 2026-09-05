@@ -1,8 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 
-export function listQuotes() {
-  return prisma.quote.findMany({ include: { customer: true, owner: true, currentRevision: true }, orderBy: { lastActivityAt: "desc" } });
+export function listQuotes(ownerId?: number) {
+  return prisma.quote.findMany({ where: ownerId ? { ownerId } : undefined, include: { customer: true, owner: true, currentRevision: true }, orderBy: { lastActivityAt: "desc" } });
 }
 
 export function getQuoteDetail(code: string) {

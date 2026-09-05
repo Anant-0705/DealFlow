@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { logEvent } from "@/lib/audit";
 import { formObject } from "@/lib/validation";
+import { uploadToStorage } from "@/lib/storage";
 import { productSchema, variantSchema, type ProductFormState } from "./schemas";
 
 export async function saveProduct(_previousState: ProductFormState, formData: FormData): Promise<ProductFormState> {
@@ -15,7 +16,45 @@ export async function saveProduct(_previousState: ProductFormState, formData: Fo
     fieldErrors: parsed.error.flatten().fieldErrors,
   };
   const value = parsed.data;
-  const data = { name: value.name, sku: value.sku, categoryId: value.categoryId, unit: value.unit, taxBps: Math.round(value.taxPercent * 100), listPricePaise: Math.round(value.listPriceRupees * 100), costPaise: Math.round(value.costRupees * 100), description: value.description, isSubscription: value.isSubscription, planId: value.isSubscription ? value.planId : null, isPromoted: value.isPromoted, active: value.active };
+
+  let imageUrl: string | null | undefined = undefined;
+  const imageFile = formData.get("image");
+  const removeImage = formData.get("removeImage");
+
+  if (imageFile instanceof File && imageFile.size > 0) {
+    if (!["image/png", "image/jpeg", "image/webp"].includes(imageFile.type)) {
+      return {
+        status: "error",
+        message: "Please upload a PNG, JPEG, or WebP image file.",
+        fieldErrors: { image: ["Upload a PNG, JPEG, or WebP image."] },
+      };
+    }
+    const uploaded = await uploadToStorage({
+      file: imageFile,
+      filename: imageFile.name,
+      contentType: imageFile.type,
+      folder: "products",
+    });
+    imageUrl = uploaded.url;
+  } else if (removeImage === "on" || removeImage === "true") {
+    imageUrl = null;
+  }
+
+  const data = {
+    name: value.name,
+    sku: value.sku,
+    categoryId: value.categoryId,
+    unit: value.unit,
+    taxBps: Math.round(value.taxPercent * 100),
+    listPricePaise: Math.round(value.listPriceRupees * 100),
+    costPaise: Math.round(value.costRupees * 100),
+    description: value.description,
+    isSubscription: value.isSubscription,
+    planId: value.isSubscription ? value.planId : null,
+    isPromoted: value.isPromoted,
+    active: value.active,
+    ...(imageUrl !== undefined ? { imageUrl } : {}),
+  };
   try {
     await prisma.$transaction(async (tx) => {
       const saved = value.id ? await tx.product.update({ where: { id: value.id }, data }) : await tx.product.create({ data });
@@ -30,6 +69,9 @@ export async function saveProduct(_previousState: ProductFormState, formData: Fo
     throw error;
   }
   revalidatePath("/app/settings/products");
+  if (value.id) {
+    revalidatePath(`/app/settings/products/${value.id}`);
+  }
   return { status: "success", message: value.id ? "Product updated successfully." : "Product created successfully." };
 }
 

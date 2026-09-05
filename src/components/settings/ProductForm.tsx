@@ -20,6 +20,7 @@ type ProductValue = {
   planId: number | null;
   isPromoted: boolean;
   active: boolean;
+  imageUrl?: string | null;
 };
 
 const initialState: ProductFormState = { status: "idle", message: "" };
@@ -47,6 +48,24 @@ export function ProductForm({ categories, plans, product }: { categories: Catego
       <label>Cost ₹<input name="costRupees" type="number" step="0.01" min="0" defaultValue={product ? product.costPaise / 100 : undefined} required/>{error("costRupees") && <small className="field-error">{error("costRupees")}</small>}</label>
     </div>
     <label>Description<textarea name="description" defaultValue={product?.description} required/>{error("description") && <small className="field-error">{error("description")}</small>}</label>
+    <div className="product-image-field">
+      <label>Product image</label>
+      {product?.imageUrl && (
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem", padding: "0.5rem", borderRadius: "8px", background: "var(--surface-muted, #f5ebe0)", border: "1px solid var(--line, #e2d4c7)" }}>
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            style={{ width: "56px", height: "56px", objectFit: "cover", borderRadius: "6px", border: "1px solid var(--line, #e2d4c7)" }}
+          />
+          <label className="check" style={{ margin: 0, fontSize: "0.875rem", cursor: "pointer" }}>
+            <input type="checkbox" name="removeImage" />
+            Remove current image
+          </label>
+        </div>
+      )}
+      <input type="file" name="image" accept="image/png,image/jpeg,image/webp" />
+      {error("image") ? <small className="field-error">{error("image")}</small> : <small className="form-help">Optional PNG, JPEG, or WebP product image stored in Cloudflare R2.</small>}
+    </div>
     <label className="check"><input type="checkbox" name="isSubscription" defaultChecked={isSubscription} onChange={(event) => setIsSubscription(event.target.checked)}/>Subscription product</label>
     <label>Billing plan<select name="planId" defaultValue={product?.planId ?? ""} disabled={!isSubscription} required={isSubscription} aria-invalid={Boolean(error("planId"))}><option value="">Choose a billing plan</option>{plans.map((plan) => <option value={plan.id} key={plan.id}>{plan.name}</option>)}</select><small className={error("planId") ? "field-error" : "form-help"}>{error("planId") ?? (isSubscription ? "Required because this product has recurring billing." : "Enable Subscription product only for recurring items.")}</small></label>
     <div className="form-row"><label className="check"><input type="checkbox" name="isPromoted" defaultChecked={product?.isPromoted}/>Promoted</label><label className="check"><input type="checkbox" name="active" defaultChecked={product?.active ?? true}/>Active</label></div>

@@ -97,6 +97,14 @@ export async function recordStockReceipt(formData: FormData) {
   const value = receiptSchema.parse({ warehouseId: formData.get("warehouseId"), productId: formData.get("productId"), variantId: formData.get("variantId"), qty: formData.get("qty"), receiptId: formData.get("receiptId") });
   const orderCodes = await prisma.$transaction(async (tx) => {
     await requireMatchingVariant(tx, value.productId, value.variantId);
+    if (value.receiptId) {
+      await tx.$queryRawUnsafe<Array<{ id: number }>>('SELECT "id" FROM "StockReceipt" WHERE "id" = $1 FOR UPDATE', value.receiptId);
+      const receipt = await tx.stockReceipt.findUniqueOrThrow({ where: { id: value.receiptId } });
+      if (receipt.warehouseId !== value.warehouseId || receipt.productId !== value.productId || receipt.variantId !== value.variantId) {
+        throw new Error("This receipt does not match the selected warehouse and product.");
+      }
+      if (receipt.receivedAt) return [];
+    }
     await lockProductStock(tx, value.productId);
     const stock = await tx.stock.findFirst({ where: { warehouseId: value.warehouseId, productId: value.productId, variantId: value.variantId } });
     const row = stock ? await tx.stock.update({ where: { id: stock.id }, data: { onHand: { increment: value.qty } } }) : await tx.stock.create({ data: { warehouseId: value.warehouseId, productId: value.productId, variantId: value.variantId, onHand: value.qty, reserved: 0 } });

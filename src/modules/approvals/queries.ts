@@ -8,7 +8,10 @@ export function getApprovalInbox(role: UserRole, all = false) {
     where: {
       level,
       ...(all ? {} : { status: "PENDING" }),
-      ...(level === "FINANCE" ? { revision: { approvalSteps: { some: { level: "MANAGER", status: "APPROVED" } } } } : {}),
+      revision: {
+        currentForQuote: { isNot: null },
+        ...(level === "FINANCE" ? { approvalSteps: { some: { level: "MANAGER", status: "APPROVED" } } } : {}),
+      },
     },
     include: { revision: { include: { quote: { include: { customer: true, owner: true } } } }, actor: true },
     orderBy: { createdAt: "asc" },
@@ -17,5 +20,12 @@ export function getApprovalInbox(role: UserRole, all = false) {
 
 export function pendingApprovalCount(role: UserRole) {
   const level = role === "FINANCE" ? "FINANCE" : "MANAGER";
-  return prisma.approvalStep.count({ where: { level, status: "PENDING", ...(level === "FINANCE" ? { revision: { approvalSteps: { some: { level: "MANAGER", status: "APPROVED" } } } } : {}) } });
+  return prisma.approvalStep.count({ where: {
+    level,
+    status: "PENDING",
+    revision: {
+      currentForQuote: { isNot: null },
+      ...(level === "FINANCE" ? { approvalSteps: { some: { level: "MANAGER", status: "APPROVED" } } } : {}),
+    },
+  } });
 }

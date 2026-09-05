@@ -1,0 +1,6 @@
+import Link from "next/link";
+import { DataTable } from "@/components/shared/DataTable";
+import { listQuotes } from "@/modules/quotes/queries";
+import { deriveStage } from "@/modules/quotes/stages";
+import { formatMoney } from "@/lib/money";
+export default async function QuotationsPage() { const quotes = await listQuotes(); const rows = quotes.map((quote) => ({ id: quote.id, href: `/app/quotations/${quote.code}`, code: quote.code, customer: quote.customer.name, amount: formatMoney(quote.currentRevision?.totalPaise ?? 0), stage: deriveStage(quote), risk: quote.currentRevision?.requiredLevel ?? "NONE", revision: `v${quote.currentRevision?.version ?? 1}`, owner: quote.owner.name })); return <div><div className="page-header"><div><div className="eyebrow">Deal core</div><h1>Quotations</h1><p>All active and historical commercial records.</p></div><div className="header-actions"><Link className="button secondary" href="/app/pipeline">Switch to Kanban View</Link><Link className="button primary" href="/app/quotations/new">+ New quotation</Link></div></div><DataTable columns={[{ key: "code", label: "Quotation" }, { key: "customer", label: "Customer" }, { key: "amount", label: "Amount" }, { key: "stage", label: "Stage" }, { key: "risk", label: "Approval route" }, { key: "revision", label: "Revision" }, { key: "owner", label: "Owner" }]} rows={rows}/></div>; }

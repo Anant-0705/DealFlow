@@ -1,0 +1,2 @@
+import { Construction } from "lucide-react";
+export function ComingSoon({ title, phase, description }: { title: string; phase: string; description: string }) { return <div className="coming-soon"><div><Construction size={28}/></div><span className="eyebrow">{phase}</span><h1>{title}</h1><p>{description}</p><small>The navigation and protected route are ready so reviewers never reach a dead end.</small></div>; }

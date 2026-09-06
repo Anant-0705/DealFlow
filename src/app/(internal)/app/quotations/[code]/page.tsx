@@ -13,6 +13,8 @@ import { formatMoney } from "@/lib/money";
 import { getBuilderData, getQuoteDetail } from "@/modules/quotes/queries";
 import { requireInternal } from "@/lib/auth";
 import { sendToCustomer, postMessage, replyAndRevise, acceptCounter } from "@/modules/negotiation/actions";
+import { getQuoteTrustState } from "@/modules/negotiation/trust";
+import { ConfirmOnBehalfDialog } from "@/components/quotes/ConfirmOnBehalfDialog";
 import { getTimeline } from "@/modules/timeline/queries";
 import { getQuoteFulfillmentPreview } from "@/modules/inventory/queries";
 import { getQuoteBillingPreview } from "@/modules/billing/queries";
@@ -41,13 +43,15 @@ export default async function QuotePage({
     : null) ?? quote.currentRevision;
 
   const canEdit = !isHistorical && (session.role === "ADMIN" || (session.role === "REP" && quote.ownerId === session.userId));
-  const [data, timeline, fulfillment, billing, documents] = await Promise.all([
+  const [data, timeline, fulfillment, billing, documents, trust] = await Promise.all([
     getBuilderData(),
     getTimeline(quote.id),
     getQuoteFulfillmentPreview(quote.id),
     getQuoteBillingPreview(quote.id),
     getDocumentParties(quote.customerId),
+    getQuoteTrustState(quote.id),
   ]);
+  const canConfirmOnBehalf = !isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && (session.role === "ADMIN" || session.role === "MANAGER" || (session.role === "REP" && quote.ownerId === session.userId));
   const safeQuote = { ...quote, currentRevision: selectedRevision };
   const previewDate = new Date().toISOString();
 
@@ -94,9 +98,11 @@ export default async function QuotePage({
 
     {tab === "overview" && <>
       <DocumentReadyAlert gaps={documents.gaps} customerName={quote.customer.name} customerHref={`/app/settings/customers/${quote.customer.code}`} />
+      {trust.disputeOpen && <Alert variant="destructive"><AlertDescription>The customer reported that they did not authorize this confirmation. Do not reserve or ship until a manager or finance closes the review.{trust.disputeMessage ? ` ${trust.disputeMessage}` : ""}</AlertDescription></Alert>}
       <div className="deal-actions">
         {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus === "SENT" && <Button type="button" variant="outline" disabled>Sent to customer</Button>}
         {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && quote.customerStatus !== "SENT" && <form action={sendToCustomer}><input type="hidden" name="quoteCode" value={quote.code}/><SubmitButton pendingLabel="Sending…">Send to customer</SubmitButton></form>}
+        {canConfirmOnBehalf && <ConfirmOnBehalfDialog quoteCode={quote.code} revisionId={quote.currentRevision.id} version={quote.currentRevision.version} totalLabel={formatMoney(quote.currentRevision.totalPaise)} customerName={quote.customer.name} customerStatus={quote.customerStatus}/>}
         {!isHistorical && quote.currentRevision.createdVia === "PORTAL" && <form action={acceptCounter}><input type="hidden" name="quoteCode" value={quote.code}/><Button type="submit" variant="secondary">Accept counter</Button></form>}
         {quote.orders[0] && <Link className={buttonVariants({ variant: "outline" })} href={`/app/fulfillment/${quote.orders[0].code}`}>Open {quote.orders[0].code}</Link>}
         <DocumentActions printHref={`/app/print/quote/${quote.code}`} pdfHref={`/app/print/quote/${quote.code}/pdf`} />

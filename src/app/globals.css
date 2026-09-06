@@ -182,6 +182,8 @@ label.check input { width:15px; min-height:15px; margin:0; }
 .line-product select { max-width:175px; margin-top:5px; padding:3px 6px; border:1px solid #d5ddd6; border-radius:5px; font-size:10px; }
 .line-product small { margin-top:5px; color:var(--muted); font-size:9px; }
 .line-product s { color:#9da7a0; }
+.qty-wrap { display:flex; flex-direction:column; gap:4px; }
+.qty-wrap .field-error { max-width:148px; line-height:1.3; }
 .qty-control { display:grid; grid-template-columns:28px 42px 28px; align-items:center; }
 .qty-control button,.icon-button { height:30px; display:grid; place-items:center; padding:0; border:1px solid #d7ded7; background:white; color:#647168; }
 .qty-control button:first-child { border-radius:6px 0 0 6px; }
@@ -405,6 +407,14 @@ label.check input { width:15px; min-height:15px; margin:0; }
 .line-comment form { display:flex; flex-direction:column; gap:7px; width:240px; margin-top:8px; }
 .confirm-panel { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-top:17px; padding:20px; border:1px solid #acd4ba; border-radius:13px; background:#edf9f1; }
 .confirm-panel p { margin:0; color:var(--muted); font-size:11px; }
+.confirm-stack { display:grid; gap:12px; margin-top:17px; }
+.dispute-panel { display:grid; gap:12px; }
+.dispute-form { display:grid; gap:8px; }
+.on-behalf-form { display:grid; gap:14px; }
+.on-behalf-field { display:grid; gap:6px; }
+.on-behalf-warning { margin:0; padding:10px 12px; border-radius:8px; background:#fff4e5; color:#7a4b11; font-size:12px; }
+.on-behalf-check { display:flex; align-items:flex-start; gap:8px; font-size:13px; line-height:1.45; }
+.on-behalf-check input { margin-top:3px; }
 .message-groups { display:grid; gap:17px; margin-top:22px; }
 .profile-card { display:grid; gap:18px; }
 .profile-card > div { display:flex; justify-content:space-between; gap:20px; padding-bottom:15px; border-bottom:1px solid var(--line); }

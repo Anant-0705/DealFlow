@@ -37,7 +37,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <div className="stats-grid dashboard-stats">{metrics.map((metric) => <StatCard key={metric.label} {...metric}/>)}</div>
     <div className="dashboard-grid">
       <Card><CardHeader><CardTitle>Recent Activity</CardTitle><CardDescription>The latest auditable events across the deals you can see.</CardDescription></CardHeader><CardContent><RecentActivity events={data.recentActivity}/></CardContent></Card>
-      <Card><CardHeader><CardTitle>My Tasks</CardTitle><CardDescription>Nudges and escalations assigned directly to you.</CardDescription></CardHeader><CardContent><MyTasks tasks={data.tasks}/></CardContent></Card>
+      <Card><CardHeader><CardTitle>My Tasks</CardTitle><CardDescription>Nudges, escalations, and customer confirmation reports assigned to you.</CardDescription></CardHeader><CardContent><MyTasks tasks={data.tasks}/></CardContent></Card>
     </div>
     <div className="dashboard-actions"><Link className={buttonVariants({ variant: "outline", size: "lg" })} href={session.role === "REP" ? "/app/quotations?status=pending" : "/app/approvals"}><FileCheck2 data-icon="inline-start"/>View approvals</Link><Link className={buttonVariants({ variant: "outline", size: "lg" })} href="/app/pipeline">View pipeline</Link></div>
   </div>;

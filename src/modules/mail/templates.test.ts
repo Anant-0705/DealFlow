@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { escapeHtml } from "./html";
-import { customerInviteEmail, inviteMailCopy, passwordResetEmail } from "./templates";
+import { customerInviteEmail, inviteMailCopy, onBehalfConfirmedEmail, passwordResetEmail, unauthorizedConfirmCustomerEmail, unauthorizedConfirmReviewerEmail } from "./templates";
 
 describe("mail templates", () => {
   it("escapes HTML in names and urls", () => {
@@ -31,6 +31,46 @@ describe("mail templates", () => {
     expect(email.html).toContain("Choose a new password");
     expect(email.html).toContain("expires in 1 hour");
     expect(email.text).toContain("current password will stay the same");
+  });
+
+  it("tells the customer a rep confirmed on their behalf and how to report it", () => {
+    const email = onBehalfConfirmedEmail({
+      customerName: `Acme <Corp>`,
+      quoteCode: "Q-1040",
+      version: 2,
+      totalLabel: "₹1,70,000",
+      actorName: "Ravi Rao",
+      channelLabel: "phone",
+      note: `Spoke with Anika <ops>`,
+      portalUrl: "http://localhost:3000/portal/quotes/Q-1040",
+    });
+    expect(email.subject).toContain("Q-1040");
+    expect(email.html).toContain("Acme &lt;Corp&gt;");
+    expect(email.html).toContain("Ravi Rao");
+    expect(email.html).toContain("Spoke with Anika &lt;ops&gt;");
+    expect(email.text).toContain("on your behalf");
+    expect(email.text).toContain("report it");
+    expect(email.html).toContain("http://localhost:3000/portal/quotes/Q-1040");
+  });
+
+  it("notifies the customer and reviewers when a confirmation is disputed", () => {
+    const customer = unauthorizedConfirmCustomerEmail({
+      customerName: "Acme Corp",
+      quoteCode: "Q-1040",
+      portalUrl: "http://localhost:3000/portal/quotes/Q-1040",
+    });
+    expect(customer.subject).toContain("Q-1040");
+    expect(customer.text).toContain("will not be reserved or shipped");
+    const reviewer = unauthorizedConfirmReviewerEmail({
+      reviewerName: "Jane Shah",
+      customerName: "Acme Corp",
+      quoteCode: "Q-1040",
+      note: "I never agreed to v2.",
+      quoteUrl: "http://localhost:3000/app/quotations/Q-1040",
+    });
+    expect(reviewer.subject).toContain("Acme Corp");
+    expect(reviewer.text).toContain("Do not reserve or ship");
+    expect(reviewer.html).toContain("I never agreed to v2.");
   });
 
   it("explains invite mail outcomes", () => {

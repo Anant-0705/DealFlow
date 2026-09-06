@@ -18,6 +18,7 @@ export function getPortalQuote(customerId: number, code: string) {
   return prisma.quote.findFirst({
     where: { customerId, code, customerStatus: { in: ["SENT", "NEGOTIATING", "CONFIRMED"] } },
     select: {
+      id: true,
       code: true,
       customerStatus: true,
       approvalStatus: true,

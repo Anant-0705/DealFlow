@@ -9,7 +9,7 @@ import { requireRole } from "@/lib/auth";
 import { INTERNAL_ROLES, QUOTE_EDITOR_ROLES } from "@/lib/roles";
 import { logEvent } from "@/lib/audit";
 import { evaluateRevision } from "@/modules/pricing/engine";
-import { draftSchema, type DraftInput } from "./schemas";
+import { draftSchema, draftValidationMessage, type DraftInput } from "./schemas";
 import { parseDismissed, withDismissed, type OfferKind, type OfferMode } from "@/modules/upsell/suggest";
 
 async function resolveEvaluation(input: DraftInput) {
@@ -87,18 +87,22 @@ export async function createQuote(formData: FormData) {
 
 export async function saveDraft(raw: unknown) {
   const session = await requireRole(QUOTE_EDITOR_ROLES);
-  const input = draftSchema.parse(raw);
-  const evaluation = await persistDraft(input, session.userId, session.role === "ADMIN");
+  const parsed = draftSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false as const, message: draftValidationMessage(parsed.error) };
+  const input = parsed.data;
+  await persistDraft(input, session.userId, session.role === "ADMIN");
   const quote = await prisma.quote.findUniqueOrThrow({ where: { id: input.quoteId }, select: { code: true } });
   revalidatePath("/app/quotations");
   revalidatePath(`/app/quotations/${quote.code}`);
-  return evaluation;
+  return { ok: true as const };
 }
 
 export async function submitForApproval(raw: unknown) {
   const session = await requireRole(QUOTE_EDITOR_ROLES);
-  const input = draftSchema.parse(raw);
-  if (!input.lines.length) throw new Error("Add at least one product before submitting.");
+  const parsed = draftSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false as const, message: draftValidationMessage(parsed.error) };
+  const input = parsed.data;
+  if (!input.lines.length) return { ok: false as const, message: "Add at least one product before submitting." };
   const evaluation = await persistDraft(input, session.userId, session.role === "ADMIN");
   const quote = await prisma.quote.findUniqueOrThrow({ where: { id: input.quoteId } });
   await prisma.$transaction(async (tx) => {
@@ -127,7 +131,7 @@ export async function submitForApproval(raw: unknown) {
   revalidatePath(`/app/quotations/${quote.code}`);
   revalidatePath(`/portal/quotes/${quote.code}`);
   revalidatePath("/app/approvals");
-  return { ok: true, requiredLevel: evaluation.requiredLevel };
+  return { ok: true as const, requiredLevel: evaluation.requiredLevel };
 }
 
 export async function reviseQuote(quoteId: number) {

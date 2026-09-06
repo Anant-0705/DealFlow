@@ -11,6 +11,7 @@ import { findConsolidatableBackorders } from "./receipts";
 import { promisedDeliveryDate } from "./promise";
 import { fulfillmentStatusForLines, orderAlreadyPlanned } from "./fulfillment-status";
 import { issueFulfillmentInvoice } from "@/modules/billing/fulfillment";
+import { assertNoOpenConfirmationDispute } from "@/modules/negotiation/trust";
 
 async function requireMatchingVariant(tx: Parameters<typeof logEvent>[0], productId: number, variantId: number | null) {
   if (variantId === null) return;
@@ -57,6 +58,7 @@ export async function acceptSuggestedSplit(formData: FormData) {
   const orderCode = String(formData.get("orderCode") ?? "");
   const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({ where: { code: orderCode } });
+    await assertNoOpenConfirmationDispute(tx, order.quoteId);
     const plan = await reserveSuggestedAllocations(tx, order.id);
     const [warehouses, receipts] = await Promise.all([
       tx.warehouse.findMany({ where: { active: true }, select: { id: true, name: true, shippingCostWeightPaise: true, replenishmentLeadDays: true } }),
@@ -78,6 +80,7 @@ export async function manualOverride(formData: FormData) {
   await prisma.$transaction(async (tx) => {
     await tx.$queryRawUnsafe<Array<{ id: number }>>('SELECT "id" FROM "Order" WHERE "code" = $1 FOR UPDATE', orderCode);
     const order = await tx.order.findUniqueOrThrow({ where: { code: orderCode }, include: { lines: { include: { allocations: true, backorders: true, product: { include: { category: true } } } } } });
+    await assertNoOpenConfirmationDispute(tx, order.quoteId);
     if (orderAlreadyPlanned(order.lines)) throw new Error("This order already has a fulfillment plan.");
     for (const productId of [...new Set(order.lines.map((line) => line.productId))]) await lockProductStock(tx, productId);
     const before = await tx.stock.findMany({ where: { productId: { in: order.lines.map((line) => line.productId) } } });
@@ -171,6 +174,7 @@ export async function consolidateBackorder(formData: FormData) {
   const orderCode = String(formData.get("orderCode") ?? "");
   await prisma.$transaction(async (tx) => {
     const backorder = await tx.backorder.findUniqueOrThrow({ where: { id: backorderId }, include: { orderLine: { include: { order: true } } } });
+    await assertNoOpenConfirmationDispute(tx, backorder.orderLine.order.quoteId);
     if (backorder.consolidatedAt || backorder.qty <= 0) throw new Error("This backorder is already consolidated.");
     await lockProductStock(tx, backorder.orderLine.productId);
     const stocks = await tx.stock.findMany({ where: { productId: backorder.orderLine.productId, variantId: backorder.orderLine.variantId, warehouse: { active: true } }, include: { warehouse: true } });
@@ -198,6 +202,7 @@ export async function markShipped(formData: FormData) {
       where: { id: allocationId },
       include: { orderLine: { include: { order: true, quoteLine: true } } },
     });
+    await assertNoOpenConfirmationDispute(tx, allocation.orderLine.order.quoteId);
     if (allocation.shippedAt) {
       const invoiceLine = await tx.invoiceLine.findUnique({ where: { allocationId }, include: { invoice: true } });
       return { orderCode: allocation.orderLine.order.code, qty: allocation.qty, invoiceCode: invoiceLine?.invoice.code ?? null, alreadyShipped: true };

@@ -164,8 +164,7 @@ export default async function CustomersSettingsPage({
         </div>
         <p className="muted">This creates the company and emails a portal invitation to the primary contact. No password is generated here.</p>
         <form action={createCustomer} className="form-stack">
-          <label>Company or customer name<input name="name" required minLength={2} maxLength={120} placeholder="Acme Corporation" /></label>
-          <label>Customer code<input name="code" required minLength={3} maxLength={32} placeholder="C-1004" /></label>
+          <label>Company or customer name<input name="name" required minLength={2} maxLength={120} /></label>
           <label>
             Tier
             <select name="tier" defaultValue="SILVER">
@@ -174,10 +173,10 @@ export default async function CustomersSettingsPage({
               <option value="GOLD">Gold</option>
             </select>
           </label>
-          <label>Primary contact email<input name="email" type="email" required maxLength={254} placeholder="buyer@acme.com" /></label>
-          <label>Phone<input name="phone" required maxLength={20} placeholder="+91 80 2222 1001" /></label>
-          <label>GSTIN<input name="gstin" required maxLength={15} placeholder="29AABCA1234A1Z5" /></label>
-          <label>Billing address<textarea name="billingAddress" required minLength={8} maxLength={240} rows={3} placeholder="Street, city, PIN" /></label>
+          <label>Primary contact email<input name="email" type="email" required maxLength={254} /></label>
+          <label>Phone<input name="phone" required maxLength={20} /></label>
+          <label>GSTIN<input name="gstin" required minLength={15} maxLength={15} /></label>
+          <label>Billing address<textarea name="billingAddress" required minLength={8} maxLength={240} rows={3} /></label>
           <button type="submit" className="button primary">Create customer and email invite</button>
         </form>
       </section>

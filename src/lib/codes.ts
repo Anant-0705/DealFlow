@@ -2,6 +2,12 @@ import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 
 type CodeDb = PrismaClient | Prisma.TransactionClient;
 
+export async function nextCustomerCode(db: CodeDb) {
+  const last = await db.customer.findFirst({ orderBy: { id: "desc" }, select: { code: true } });
+  const numeric = last ? Number(last.code.replace(/\D/g, "")) : 1003;
+  return `C-${Math.max(1004, Number.isFinite(numeric) ? numeric + 1 : 1004)}`;
+}
+
 export async function nextQuoteCode(db: CodeDb) {
   const last = await db.quote.findFirst({ orderBy: { id: "desc" }, select: { code: true } });
   const numeric = last ? Number(last.code.replace(/\D/g, "")) : 1041;

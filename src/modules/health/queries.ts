@@ -58,7 +58,7 @@ export async function getDealHealth(session: AppSession) {
       where: { action: "ALERT_DISMISSED", at: { gte: new Date(Date.now() - 7 * 86_400_000) }, quote: owned },
       select: { quoteId: true, meta: true },
     }),
-    prisma.task.findMany({ where: { quote: owned }, orderBy: { createdAt: "desc" }, include: { createdBy: true } }),
+    prisma.task.findMany({ where: { quote: owned }, orderBy: { createdAt: "desc" }, include: { createdBy: true, quote: { select: { code: true, customer: { select: { name: true } }, owner: { select: { name: true } } } } } }),
   ]);
 
   const dismissed = new Set<string>();
@@ -196,7 +196,7 @@ export async function getDealHealth(session: AppSession) {
       : undefined;
     return {
       ...alert,
-      actionTaken: task ? `${task.kind === "NUDGE" ? "Nudged" : "Escalated"} by ${task.createdBy.name}` : null,
+      actionTaken: task ? `${task.kind === "NUDGE" ? "Nudged" : task.kind === "ESCALATION" ? "Escalated" : "Customer dispute"} by ${task.createdBy.name}` : null,
       scheduleReceipt: source && warehouseId
         ? {
             warehouseId,
@@ -225,5 +225,15 @@ export async function getDealHealth(session: AppSession) {
       qty: receipt.qty,
       expectedAt: receipt.expectedAt,
     })),
+    confirmationDisputes: (() => {
+      const seen = new Set<number>();
+      const rows: Array<{ quoteId: number; code: string; customer: string; rep: string; message: string; createdAt: Date }> = [];
+      for (const task of tasks) {
+        if (task.kind !== "CONFIRMATION_DISPUTE" || task.done || seen.has(task.quoteId)) continue;
+        seen.add(task.quoteId);
+        rows.push({ quoteId: task.quoteId, code: task.quote.code, customer: task.quote.customer.name, rep: task.quote.owner.name, message: task.message, createdAt: task.createdAt });
+      }
+      return rows;
+    })(),
   };
 }

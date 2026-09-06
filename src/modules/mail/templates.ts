@@ -59,6 +59,110 @@ export function passwordResetEmail(args: { name: string; resetUrl: string; expir
   };
 }
 
+export function onBehalfConfirmedEmail(args: {
+  customerName: string;
+  quoteCode: string;
+  version: number;
+  totalLabel: string;
+  actorName: string;
+  channelLabel: string;
+  note: string;
+  portalUrl: string;
+}) {
+  const customerName = escapeHtml(args.customerName);
+  const actorName = escapeHtml(args.actorName);
+  const quoteCode = escapeHtml(args.quoteCode);
+  return {
+    subject: `${args.quoteCode} was confirmed on your behalf`,
+    text: [
+      `Hello ${args.customerName},`,
+      `${args.actorName} confirmed quotation ${args.quoteCode} v${args.version} (${args.totalLabel}) on your behalf.`,
+      `They recorded that you agreed by ${args.channelLabel}: ${args.note}`,
+      "This creates the order and invoices. Review it in your portal. If you did not authorize this, report it there.",
+      args.portalUrl,
+    ].join("\n\n"),
+    html: transactionalEmail({
+      preheader: `${args.actorName} confirmed ${args.quoteCode} on your behalf. Review it, or report if this was not you.`,
+      eyebrow: "Quotation confirmed",
+      title: `${args.quoteCode} is now an order`,
+      intro: `Hello ${customerName}, <strong>${actorName}</strong> confirmed quotation <strong>${quoteCode}</strong> v${args.version} (${escapeHtml(args.totalLabel)}) on your behalf.`,
+      steps: [
+        `They recorded that you agreed by ${args.channelLabel}: ${args.note}`,
+        "This creates the order and the invoices.",
+        "If you did not authorize this, open the quotation and report it. Fulfillment pauses until it is reviewed.",
+      ],
+      ctaLabel: "Review quotation",
+      ctaUrl: args.portalUrl,
+      expiry: "You can report an unauthorized confirmation from the portal at any time until your team marks the review done.",
+      note: "If you did agree, you can ignore the report option and wait for invoices in the portal.",
+    }),
+  };
+}
+
+export function unauthorizedConfirmCustomerEmail(args: { customerName: string; quoteCode: string; portalUrl: string }) {
+  const customerName = escapeHtml(args.customerName);
+  const quoteCode = escapeHtml(args.quoteCode);
+  return {
+    subject: `We received your report on ${args.quoteCode}`,
+    text: [
+      `Hello ${args.customerName},`,
+      `We received your report that you did not authorize ${args.quoteCode}.`,
+      "A sales manager and finance have been asked to review it. Stock will not be reserved or shipped until they close that review.",
+      args.portalUrl,
+    ].join("\n\n"),
+    html: transactionalEmail({
+      preheader: `Your report on ${args.quoteCode} is with your sales manager and finance.`,
+      eyebrow: "Confirmation review",
+      title: "We received your report",
+      intro: `Hello ${customerName}, we received your report that you did not authorize <strong>${quoteCode}</strong>.`,
+      steps: [
+        "A sales manager and finance have been asked to review it.",
+        "Stock will not be reserved or shipped until they close that review.",
+      ],
+      ctaLabel: "Open quotation",
+      ctaUrl: args.portalUrl,
+      expiry: "This does not automatically cancel invoices that were already issued. Finance handles those.",
+      note: "If you sent this by mistake, reply to your sales representative in the portal.",
+    }),
+  };
+}
+
+export function unauthorizedConfirmReviewerEmail(args: {
+  reviewerName: string;
+  customerName: string;
+  quoteCode: string;
+  note: string;
+  quoteUrl: string;
+}) {
+  const reviewerName = escapeHtml(args.reviewerName);
+  const customerName = escapeHtml(args.customerName);
+  const quoteCode = escapeHtml(args.quoteCode);
+  return {
+    subject: `${args.customerName} reported they did not authorize ${args.quoteCode}`,
+    text: [
+      `Hi ${args.reviewerName},`,
+      `${args.customerName} reported that they did not authorize ${args.quoteCode}.`,
+      args.note,
+      "Do not reserve or ship this order until the review is closed.",
+      args.quoteUrl,
+    ].join("\n\n"),
+    html: transactionalEmail({
+      preheader: `${args.customerName} flagged ${args.quoteCode}. Fulfillment is paused until you review it.`,
+      eyebrow: "Customer dispute",
+      title: `${args.quoteCode} needs a review`,
+      intro: `Hi ${reviewerName}, <strong>${customerName}</strong> reported that they did not authorize <strong>${quoteCode}</strong>.`,
+      steps: [
+        args.note,
+        "Do not reserve or ship this order until you close the review on your dashboard.",
+      ],
+      ctaLabel: "Open quotation",
+      ctaUrl: args.quoteUrl,
+      expiry: "The customer can see that their report was received.",
+      note: "Mark the assigned task done only after you have spoken with the customer or issued a credit.",
+    }),
+  };
+}
+
 export function inviteMailCopy(status: string | undefined, to?: string) {
   if (status === "sent") return to ? `Invitation emailed to ${to}. The one-time link is also below if they need it resent by hand.` : "Invitation emailed. The one-time link is also below if they need it resent by hand.";
   if (status === "skipped") return "Email is not configured on this server (missing RESEND_API_KEY). Copy the one-time link and send it to the contact.";

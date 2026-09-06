@@ -96,22 +96,29 @@ export function QuoteBuilder({ quote, products, policy, pairings, stock, warehou
         : [...lines, { productId: item.productId, variantId: item.variantId, qty: 1, lineDiscountBps: tierBps }];
     setLines(next);
     startTransition(async () => {
-      await saveDraft({
+      const saved = await saveDraft({
         ...payload(next),
         auditAction: item.kind === "CROSS_SELL" ? "CROSS_SELL_ADDED" : "UPSELL_ADDED",
         offerProductId: item.productId,
         offerVariantId: item.variantId,
         upsellProductId: item.productId,
       });
+      if (!saved.ok) { setNotice(saved.message); return; }
       setNotice(item.mode === "UPGRADE" ? `${item.name} applied. Totals updated.` : `${item.name} added. Total and margin updated.`);
       router.refresh();
     });
   };
-  const save = () => startTransition(async () => { await saveDraft(payload()); router.refresh(); });
+  const save = () => startTransition(async () => {
+    const saved = await saveDraft(payload());
+    if (!saved.ok) { setNotice(saved.message); return; }
+    setNotice("Draft saved.");
+    router.refresh();
+  });
   const submit = async () => {
     setSubmitting(true);
     try {
       const result = await submitForApproval(payload());
+      if (!result.ok) { setNotice(result.message); return; }
       setSubmittedLevel(result.requiredLevel);
       setNotice(result.requiredLevel === "NONE" ? "Quote auto-approved and sent directly to the customer." : "Quote submitted to the approval inbox.");
       router.refresh();
@@ -176,10 +183,16 @@ export function QuoteBuilder({ quote, products, policy, pairings, stock, warehou
         </div>
         <div className="header-actions quote-status-actions">
           <Badge variant={statusVariant}>{statusLabel}</Badge>
+          {editable && <>
+            <Button type="button" variant="outline" disabled={pending || submitting} onClick={save}><Save data-icon="inline-start"/>Save draft</Button>
+            <Button type="button" disabled={pending || submitting || !lines.length} onClick={submit}><Send data-icon="inline-start"/>{submitting ? "Submitting…" : evaluation.requiredLevel === "NONE" ? "Confirm, no approval needed" : "Submit for approval"}</Button>
+          </>}
           {!editable && canEdit && !isHistorical && quote.customerStatus !== "CONFIRMED" ? <Button type="button" disabled={pending || submitting} onClick={revise}><ShieldCheck data-icon="inline-start"/>Revise as v{revision.version + 1}</Button> : null}
+          {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus === "SENT" && <Badge variant="secondary"><Check aria-hidden="true"/>Sent to customer</Badge>}
+          {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && quote.customerStatus !== "SENT" && <form action={sendToCustomer}><input type="hidden" name="quoteCode" value={quote.code}/><SubmitButton pendingLabel="Sending…"><Send data-icon="inline-start"/>Send to customer</SubmitButton></form>}
         </div>
       </div>
-      {notice && <Alert><AlertDescription>{notice}</AlertDescription></Alert>}
+      {notice && <Alert variant={/cannot exceed|try again|before submitting|unavailable/i.test(notice) ? "destructive" : "default"}><AlertDescription>{notice}</AlertDescription></Alert>}
 
       <div className="builder-grid builder-grid-focused">
         <div className="builder-main">
@@ -187,14 +200,6 @@ export function QuoteBuilder({ quote, products, policy, pairings, stock, warehou
             <div className="panel-heading quotation-lines-heading">
               <div><span className="eyebrow">Quotation lines</span><h2>{lines.length} {lines.length === 1 ? "item" : "items"}</h2></div>
               <div className="cart-heading-actions">
-                <div className="quote-line-actions" aria-label="Quotation actions">
-                  {editable && <>
-                    <Button type="button" variant="outline" disabled={pending || submitting} onClick={save}><Save data-icon="inline-start"/>Save draft</Button>
-                    <Button type="button" disabled={pending || submitting || !lines.length} onClick={submit}><Send data-icon="inline-start"/>{submitting ? "Submitting…" : evaluation.requiredLevel === "NONE" ? "Confirm, no approval needed" : "Submit for approval"}</Button>
-                  </>}
-                  {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus === "SENT" && <Badge variant="secondary"><Check aria-hidden="true"/>Sent to customer</Badge>}
-                  {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && quote.customerStatus !== "SENT" && <form action={sendToCustomer}><input type="hidden" name="quoteCode" value={quote.code}/><SubmitButton pendingLabel="Sending…"><Send data-icon="inline-start"/>Send to customer</SubmitButton></form>}
-                </div>
                 <label className="order-discount"><span>Order discount</span><div><input disabled={!editable} type="number" min="0" max="100" step="0.1" value={orderDiscountBps / 100} onChange={(event) => setOrderDiscountBps(Math.round(Number(event.target.value) * 100))}/><b>%</b></div></label>
               </div>
             </div>

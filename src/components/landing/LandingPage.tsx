@@ -75,7 +75,7 @@ export function LandingPage() {
           {
             description: "Revenue operations bundle",
             categoryId: 1,
-            categoryName: "Hardware",
+            categoryName: "Product",
             categoryCeilingBps: 1500,
             qty: 2,
             unitPricePaise: 8_500_000,

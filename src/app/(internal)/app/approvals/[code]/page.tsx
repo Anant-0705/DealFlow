@@ -5,7 +5,6 @@ import { getQuoteDetail } from "@/modules/quotes/queries";
 import { requirePageRole } from "@/lib/auth";
 import { APPROVER_ROLES } from "@/lib/roles";
 import { formatMoney, formatPercent } from "@/lib/money";
-import { ReasonList } from "@/components/shared/ReasonList";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { DocumentActions } from "@/components/print/DocumentActions";
 import { buttonVariants } from "@/components/ui/button";
@@ -23,7 +22,6 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
       step.status === "PENDING" &&
       revision.approvalSteps.filter((prior) => prior.sequence < step.sequence).every((prior) => prior.status === "APPROVED")
   );
-  const reasons = Array.isArray(revision.reasons) ? revision.reasons.filter((item): item is string => typeof item === "string") : [];
   const totalQty = revision.lines.reduce((sum, line) => sum + line.qty, 0);
   const totalNetPaise = revision.lines.reduce((sum, line) => sum + line.netPaise, 0);
 
@@ -47,17 +45,6 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
 
       <div className="approval-grid">
         <div>
-          <section className="panel risk-panel">
-            <div className="panel-heading">
-              <div>
-                <span className="eyebrow">Explainable governance</span>
-                <h2>Why this quote was flagged</h2>
-              </div>
-              <StatusBadge status={revision.requiredLevel}/>
-            </div>
-            <ReasonList reasons={reasons}/>
-          </section>
-
           <section className="panel">
             <div className="panel-heading">
               <div>

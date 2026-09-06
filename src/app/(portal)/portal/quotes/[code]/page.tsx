@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { getPortalQuote } from "@/modules/negotiation/queries";
+import { getQuoteTrustState } from "@/modules/negotiation/trust";
 import { postMessage } from "@/modules/negotiation/actions";
 import { getDocumentParties } from "@/modules/company/queries";
 import { DocumentReadyAlert } from "@/components/print/DocumentBlocked";
@@ -27,7 +28,7 @@ export default async function PortalQuotePage({
   const [{ code }, query, session] = await Promise.all([params, searchParams, requireSession()]);
   const quote = await getPortalQuote(session.customerId!, code);
   if (!quote?.currentRevision) notFound();
-  const documents = await getDocumentParties(session.customerId!);
+  const [documents, trust] = await Promise.all([getDocumentParties(session.customerId!), getQuoteTrustState(quote.id)]);
   const safeLines = quote.currentRevision.lines.map((line) => ({ id: line.id, description: line.description, qty: line.qty, unitPricePaise: line.unitPricePaise, taxBps: line.product.taxBps, lineDiscountBps: line.lineDiscountBps }));
 
   return <div className="portal-page quote-view">
@@ -49,6 +50,6 @@ export default async function PortalQuotePage({
       <CounterOfferForm quoteCode={quote.code} currentTotalPaise={quote.currentRevision.totalPaise} orderDiscountBps={quote.currentRevision.orderDiscountBps} lines={safeLines} disabled={quote.customerStatus === "CONFIRMED" || quote.approvalStatus === "PENDING"}/>
       <Card><CardHeader><CardTitle>Conversation</CardTitle><CardDescription>Messages shared with your sales team.</CardDescription></CardHeader><CardContent><MessageThread messages={quote.messages}/><form action={postMessage} className="message-compose"><input type="hidden" name="quoteCode" value={quote.code}/><Textarea name="text" required placeholder="Write a message to your sales team"/><Button type="submit" variant="outline" size="sm">Send message</Button></form></CardContent></Card>
     </div>
-    <ConfirmButton quoteCode={quote.code} revisionId={quote.currentRevision.id} approvalStatus={quote.approvalStatus} customerStatus={quote.customerStatus}/>
+    <ConfirmButton quoteCode={quote.code} revisionId={quote.currentRevision.id} approvalStatus={quote.approvalStatus} customerStatus={quote.customerStatus} onBehalf={trust.onBehalf} actorName={trust.actorName} channel={trust.channel} note={trust.note} canReport={trust.canReport} alreadyReported={trust.alreadyReported} disputeOpen={trust.disputeOpen}/>
   </div>;
 }

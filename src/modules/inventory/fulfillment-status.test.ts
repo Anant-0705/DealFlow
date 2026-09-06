@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fulfillmentStatusForLines, orderAlreadyPlanned } from "./fulfillment-status";
 
-const hardware = { isSubscription: false, category: { name: "Hardware" } };
+const hardware = { isSubscription: false, category: { name: "Product" } };
 const service = { isSubscription: true, category: { name: "Services" } };
 
 function line(overrides: Partial<Parameters<typeof fulfillmentStatusForLines>[0][number]> = {}) {

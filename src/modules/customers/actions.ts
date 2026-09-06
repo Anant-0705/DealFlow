@@ -13,11 +13,11 @@ import { sendMail, mailStatus } from "@/modules/mail/send";
 import { customerInviteEmail } from "@/modules/mail/templates";
 import { customerInviteUrl } from "./links";
 import { issueInvite } from "./invite";
+import { nextCustomerCode } from "@/lib/codes";
 
 const emailSchema = z.email().trim().max(254).transform((value) => value.toLowerCase());
 const customerSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  code: z.string().trim().toUpperCase().regex(/^[A-Z0-9][A-Z0-9-]{2,31}$/, "Use 3–32 letters, numbers, or hyphens."),
   tier: z.enum(["BRONZE", "SILVER", "GOLD"]),
   email: emailSchema,
   phone: z.string().trim().regex(/^[+0-9][0-9\s-]{7,19}$/, "Enter a valid customer phone number."),
@@ -70,13 +70,12 @@ async function sendInviteEmail(args: { to: string; customerName: string; token: 
 export async function createCustomer(formData: FormData) {
   const session = await requireRole(CUSTOMER_MANAGER_ROLES);
   const parsed = customerSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) redirect(errorPath(parsed.error.issues[0]?.message ?? "Check the company name, code, tier, contact, and billing details."));
+  if (!parsed.success) redirect(errorPath(parsed.error.issues[0]?.message ?? "Check the company name, tier, contact, and billing details."));
   const blocked = await emailIsAvailable(parsed.data.email);
   if (blocked) redirect(errorPath(blocked));
-  const duplicateCode = await prisma.customer.findUnique({ where: { code: parsed.data.code }, select: { id: true } });
-  if (duplicateCode) redirect(errorPath("A customer with that code already exists."));
   const issued = await prisma.$transaction(async (tx) => {
-    const customer = await tx.customer.create({ data: { name: parsed.data.name, code: parsed.data.code, tier: parsed.data.tier, email: parsed.data.email, phone: parsed.data.phone, gstin: parsed.data.gstin, billingAddress: parsed.data.billingAddress } });
+    const code = await nextCustomerCode(tx);
+    const customer = await tx.customer.create({ data: { name: parsed.data.name, code, tier: parsed.data.tier, email: parsed.data.email, phone: parsed.data.phone, gstin: parsed.data.gstin, billingAddress: parsed.data.billingAddress } });
     const token = await issueInvite(tx, customer.id, parsed.data.email, session.userId);
     await logEvent(tx, { entity: "CUSTOMER", entityId: customer.id, action: "SETTINGS_CHANGED", actorId: session.userId, reason: `Created ${customer.name} and issued a portal invitation to ${parsed.data.email}.` });
     return { customerName: customer.name, token };

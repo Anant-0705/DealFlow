@@ -7,8 +7,14 @@ import { getSession, requireRole } from "@/lib/auth";
 import { logEvent } from "@/lib/audit";
 import { evaluateRevision } from "@/modules/pricing/engine";
 import { confirmQuotation } from "./confirm";
-import { confirmSchema, counterSchema, messageSchema } from "./schemas";
+import { confirmOnBehalfSchema, confirmSchema, counterSchema, messageSchema, unauthorizedConfirmSchema } from "./schemas";
 import { getDocumentParties } from "@/modules/company/queries";
+import { sendMail } from "@/modules/mail/send";
+import { onBehalfConfirmedEmail, unauthorizedConfirmCustomerEmail, unauthorizedConfirmReviewerEmail } from "@/modules/mail/templates";
+import { appBaseUrl } from "@/modules/customers/links";
+import { formatMoney } from "@/lib/money";
+import { CHANNEL_LABELS, disputePortalMessage, disputeTaskMessage, parseOnBehalfMeta } from "./on-behalf";
+import { listConfirmationReviewers } from "./trust";
 
 const nullableNumber = (value: FormDataEntryValue | null) => value ? Number(value) : null;
 
@@ -191,12 +197,117 @@ export async function confirmAsCustomer(formData: FormData) {
 
 export async function confirmOnBehalf(formData: FormData) {
   const session = await requireRole(["REP", "MANAGER", "ADMIN"]);
-  const value = confirmSchema.parse({ quoteCode: formData.get("quoteCode"), revisionId: formData.get("revisionId") });
+  const quoteCode = String(formData.get("quoteCode") ?? "");
+  const parsed = confirmOnBehalfSchema.safeParse({
+    quoteCode: formData.get("quoteCode"),
+    revisionId: formData.get("revisionId"),
+    channel: formData.get("channel"),
+    note: formData.get("note"),
+    authorized: formData.get("authorized"),
+  });
+  if (!parsed.success) {
+    redirect(`/app/quotations/${quoteCode}?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Record how the customer authorized this quotation.")}`);
+  }
+  const value = parsed.data;
   if (session.role === "REP") {
     const quote = await prisma.quote.findUnique({ where: { code: value.quoteCode }, select: { ownerId: true } });
     if (!quote || quote.ownerId !== session.userId) throw new Error("Only the quote owner can confirm it on behalf of the customer.");
   }
-  const result = await confirmQuotation(value.quoteCode, value.revisionId, { userId: session.userId, role: session.role, customerId: null, onBehalf: true });
+  const result = await confirmQuotation(value.quoteCode, value.revisionId, {
+    userId: session.userId,
+    role: session.role,
+    customerId: null,
+    onBehalf: true,
+    evidence: { channel: value.channel, note: value.note },
+  });
   if (!result.ok) redirect(`/app/quotations/${value.quoteCode}?error=${encodeURIComponent(result.message)}`);
-  redirect(`/app/fulfillment/${result.orderCode}?notice=Order+created`);
+  if (result.customerEmail) {
+    await sendMail({
+      to: result.customerEmail,
+      ...onBehalfConfirmedEmail({
+        customerName: result.customerName,
+        quoteCode: result.quoteCode,
+        version: result.version,
+        totalLabel: formatMoney(result.totalPaise),
+        actorName: result.actorName,
+        channelLabel: CHANNEL_LABELS[value.channel],
+        note: value.note,
+        portalUrl: `${appBaseUrl()}/portal/quotes/${result.quoteCode}`,
+      }),
+    });
+  }
+  revalidatePath(`/app/quotations/${value.quoteCode}`);
+  revalidatePath(`/portal/quotes/${value.quoteCode}`);
+  redirect(`/app/fulfillment/${result.orderCode}?notice=${encodeURIComponent("Order created. The customer was notified in the portal.")}`);
+}
+
+export async function reportUnauthorizedConfirm(formData: FormData) {
+  const session = await requireRole(["CUSTOMER"]);
+  const quoteCode = String(formData.get("quoteCode") ?? "");
+  const parsed = unauthorizedConfirmSchema.safeParse({ quoteCode: formData.get("quoteCode"), note: formData.get("note") });
+  if (!parsed.success) {
+    redirect(`/portal/quotes/${quoteCode}?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Tell us what happened.")}`);
+  }
+  const value = parsed.data;
+  const mailed = await prisma.$transaction(async (tx) => {
+    const quote = await tx.quote.findFirst({
+      where: { code: value.quoteCode, customerId: session.customerId ?? -1 },
+      include: { customer: true, currentRevision: true, orders: { select: { code: true }, orderBy: { confirmedAt: "desc" }, take: 1 } },
+    });
+    if (!quote?.currentRevision) throw new Error("Quotation not found.");
+    if (quote.customerStatus !== "CONFIRMED") throw new Error("This quotation is not confirmed.");
+    const confirmed = await tx.auditEvent.findFirst({ where: { quoteId: quote.id, action: "CONFIRMED" }, orderBy: { at: "desc" } });
+    const evidence = confirmed ? parseOnBehalfMeta(confirmed.meta) : { onBehalf: false };
+    if (!evidence.onBehalf) throw new Error("Only a confirmation made on your behalf can be reported this way.");
+    const existing = await tx.task.findFirst({ where: { quoteId: quote.id, kind: "CONFIRMATION_DISPUTE" }, select: { id: true } });
+    if (existing) throw new Error("This confirmation has already been reported.");
+    const reviewers = await listConfirmationReviewers(tx);
+    const taskMessage = disputeTaskMessage({ customerName: quote.customer.name, quoteCode: quote.code, note: value.note });
+    for (const reviewer of reviewers) {
+      await tx.task.create({ data: { quoteId: quote.id, assigneeId: reviewer.id, createdById: session.userId, kind: "CONFIRMATION_DISPUTE", message: taskMessage } });
+    }
+    const message = await tx.portalMessage.create({
+      data: { quoteId: quote.id, revisionId: quote.currentRevision.id, customerUserId: session.userId, message: disputePortalMessage(value.note) },
+    });
+    await tx.quote.update({ where: { id: quote.id }, data: { lastActivityAt: new Date() } });
+    await logEvent(tx, {
+      entity: "QUOTE",
+      entityId: quote.id,
+      quoteId: quote.id,
+      action: "CONFIRMATION_DISPUTED",
+      actorId: session.userId,
+      reason: value.note,
+      meta: { onBehalf: true, orderCode: quote.orders[0]?.code ?? null },
+    });
+    await logEvent(tx, { entity: "PORTAL_MESSAGE", entityId: message.id, quoteId: quote.id, action: "PORTAL_MESSAGE", actorId: session.userId, reason: message.message });
+    return {
+      customerName: quote.customer.name,
+      customerEmail: quote.customer.email,
+      quoteCode: quote.code,
+      orderCode: quote.orders[0]?.code ?? null,
+      reviewers,
+      note: value.note,
+    };
+  });
+  const portalUrl = `${appBaseUrl()}/portal/quotes/${mailed.quoteCode}`;
+  const quoteUrl = `${appBaseUrl()}/app/quotations/${mailed.quoteCode}`;
+  if (mailed.customerEmail) {
+    await sendMail({ to: mailed.customerEmail, ...unauthorizedConfirmCustomerEmail({ customerName: mailed.customerName, quoteCode: mailed.quoteCode, portalUrl }) });
+  }
+  await Promise.all(mailed.reviewers.map((reviewer) => sendMail({
+    to: reviewer.email,
+    ...unauthorizedConfirmReviewerEmail({
+      reviewerName: reviewer.name,
+      customerName: mailed.customerName,
+      quoteCode: mailed.quoteCode,
+      note: mailed.note,
+      quoteUrl,
+    }),
+  })));
+  revalidatePath(`/portal/quotes/${mailed.quoteCode}`);
+  revalidatePath(`/app/quotations/${mailed.quoteCode}`);
+  revalidatePath("/app/deal-health");
+  revalidatePath("/app/dashboard");
+  if (mailed.orderCode) revalidatePath(`/app/fulfillment/${mailed.orderCode}`);
+  redirect(`/portal/quotes/${mailed.quoteCode}?notice=${encodeURIComponent("We received your report. A manager and finance will review it before anything is reserved or shipped.")}`);
 }

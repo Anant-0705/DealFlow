@@ -35,7 +35,7 @@ export async function seedDatabase(db: Prisma.TransactionClient) {
   ]);
 
   const [hardware, services, subscription] = await Promise.all([
-    db.category.create({ data: { name: "Hardware", discountCeilingBps: 1500 } }),
+    db.category.create({ data: { name: "Product", discountCeilingBps: 1500 } }),
     db.category.create({ data: { name: "Services", discountCeilingBps: 1000 } }),
     db.category.create({ data: { name: "Subscription", discountCeilingBps: 1000 } }),
   ]);

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Activity } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 
-const labels: Record<string, string> = { QUOTE_CREATED: "created the quotation", SUBMITTED: "submitted for approval", AUTO_APPROVED: "was approved automatically", APPROVED: "approved the quotation", RETURNED: "returned it for revision", REJECTED: "rejected the quotation", SENT: "sent it to the customer", CONFIRMED: "confirmed the quotation", NUDGE_SENT: "sent a nudge", ESCALATED: "escalated the deal", PAYMENT_RECORDED: "recorded a payment" };
+const labels: Record<string, string> = { QUOTE_CREATED: "created the quotation", SUBMITTED: "submitted for approval", AUTO_APPROVED: "was approved automatically", APPROVED: "approved the quotation", RETURNED: "returned it for revision", REJECTED: "rejected the quotation", SENT: "sent it to the customer", CONFIRMED: "confirmed the quotation", CONFIRMATION_DISPUTED: "reported an unauthorized confirmation", NUDGE_SENT: "sent a nudge", ESCALATED: "escalated the deal", PAYMENT_RECORDED: "recorded a payment" };
 
 type ActivityRow = { id: number; action: string; at: Date; reason: string | null; actor: { name: string } | null; quote: { code: string; customer: { name: string } } | null };
 

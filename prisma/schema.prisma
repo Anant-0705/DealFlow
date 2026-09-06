@@ -139,12 +139,14 @@ enum AuditAction {
   ESCALATED
   ALERT_DISMISSED
   TASK_COMPLETED
+  CONFIRMATION_DISPUTED
   RESET
 }
 
 enum TaskKind {
   NUDGE
   ESCALATION
+  CONFIRMATION_DISPUTE
 }
 
 enum SubscriptionStatus {

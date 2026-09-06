@@ -10,7 +10,7 @@ const policy = {
   financeBlendedExcessBps: 300,
   financeExcessValuePaise: 500000,
 };
-const line = (overrides: Partial<EvaluationLineInput> = {}): EvaluationLineInput => ({ description: "Laptop Pro 14", categoryId: 1, categoryName: "Hardware", categoryCeilingBps: 1500, qty: 1, unitPricePaise: 8500000, unitCostPaise: 6800000, taxBps: 1800, lineDiscountBps: 0, ...overrides });
+const line = (overrides: Partial<EvaluationLineInput> = {}): EvaluationLineInput => ({ description: "Laptop Pro 14", categoryId: 1, categoryName: "Product", categoryCeilingBps: 1500, qty: 1, unitPricePaise: 8500000, unitCostPaise: 6800000, taxBps: 1800, lineDiscountBps: 0, ...overrides });
 const run = (overrides: Partial<EvaluationInput> = {}) => evaluateRevision({ customerTier: "GOLD", policy, orderDiscountBps: 0, lines: [line()], ...overrides });
 
 describe("evaluateRevision", () => {

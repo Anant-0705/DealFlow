@@ -6,18 +6,24 @@ import { generateInitialBilling } from "@/modules/billing/onConfirm";
 import { getDocumentParties } from "@/modules/company/queries";
 import { allocateInventory } from "@/modules/inventory/allocate";
 import { promisedDeliveryDate } from "@/modules/inventory/promise";
+import { onBehalfAuditReason, onBehalfPortalMessage, type ConfirmChannel } from "./on-behalf";
 
-export type ConfirmActor = { userId: number; role: UserRole; customerId: number | null; onBehalf?: boolean };
+export type ConfirmEvidence = { channel: ConfirmChannel; note: string };
+export type ConfirmActor = { userId: number; role: UserRole; customerId: number | null; onBehalf?: boolean; evidence?: ConfirmEvidence };
 
 export async function confirmQuotation(quoteCode: string, revisionId: number, actor: ConfirmActor) {
   return prisma.$transaction(async (tx) => {
     const quote = await tx.quote.findFirst({
       where: { code: quoteCode, ...(actor.role === "CUSTOMER" ? { customerId: actor.customerId ?? -1 } : {}) },
-      include: { currentRevision: { include: { approvalSteps: true, lines: { include: { product: { include: { category: true } }, variant: true } } } } },
+      include: {
+        customer: { select: { name: true, email: true } },
+        currentRevision: { include: { approvalSteps: true, lines: { include: { product: { include: { category: true } }, variant: true } } } },
+      },
     });
     if (!quote?.currentRevision) return { ok: false as const, code: "NOT_FOUND" as const, message: "Quotation not found." };
     if (revisionId !== quote.currentRevisionId) return { ok: false as const, code: "STALE" as const, message: `This quotation was updated (now v${quote.currentRevision.version}). Please review the latest version.` };
     if (quote.customerStatus === "CONFIRMED") return { ok: false as const, code: "CONFIRMED" as const, message: "Already confirmed." };
+    if (actor.onBehalf && !actor.evidence) return { ok: false as const, code: "EVIDENCE" as const, message: "Record how the customer authorized this quotation." };
     const steps = quote.currentRevision.approvalSteps;
     const approvalsValid = quote.approvalStatus === "APPROVED" && steps.every((step) => step.status === "APPROVED");
     if (!approvalsValid) return { ok: false as const, code: "APPROVAL" as const, message: "Awaiting internal approval." };
@@ -25,6 +31,7 @@ export async function confirmQuotation(quoteCode: string, revisionId: number, ac
     if (!documents.ready) return { ok: false as const, code: "DOCUMENTS" as const, message: documents.message };
 
     const confirmedAt = new Date();
+    const actorUser = await tx.user.findUniqueOrThrow({ where: { id: actor.userId }, select: { name: true } });
     const [stock, warehouses, receipts] = await Promise.all([
       tx.stock.findMany({ select: { warehouseId: true, productId: true, variantId: true, onHand: true, reserved: true } }),
       tx.warehouse.findMany({ where: { active: true }, select: { id: true, name: true, shippingCostWeightPaise: true, replenishmentLeadDays: true } }),
@@ -46,10 +53,42 @@ export async function confirmQuotation(quoteCode: string, revisionId: number, ac
     const promised = quote.promisedDeliveryDate ?? promisedDeliveryDate({ confirmedAt, plan, warehouses, receipts });
     const order = await createOrderFromRevision(tx, { quoteId: quote.id, revisionId, confirmedAt, promisedDeliveryDate: promised });
     await tx.quote.update({ where: { id: quote.id }, data: { customerStatus: "CONFIRMED", fulfillmentStatus: "PLANNED", paymentStatus: "NONE", lastActivityAt: confirmedAt } });
-    await logEvent(tx, { entity: "QUOTE", entityId: quote.id, quoteId: quote.id, action: "CONFIRMED", actorId: actor.userId, reason: actor.onBehalf ? "Confirmed on behalf of the customer." : "Customer confirmed the quotation.", meta: { revisionId, onBehalf: Boolean(actor.onBehalf) } });
+    const evidence = actor.evidence;
+    await logEvent(tx, {
+      entity: "QUOTE",
+      entityId: quote.id,
+      quoteId: quote.id,
+      action: "CONFIRMED",
+      actorId: actor.userId,
+      reason: actor.onBehalf && evidence ? onBehalfAuditReason(evidence.channel, evidence.note) : "Customer confirmed the quotation.",
+      meta: { revisionId, onBehalf: Boolean(actor.onBehalf), channel: evidence?.channel ?? null, note: evidence?.note ?? null },
+    });
     await logEvent(tx, { entity: "ORDER", entityId: order.id, quoteId: quote.id, action: "ORDER_CREATED", actorId: actor.userId, reason: `${order.code} created from ${quote.code} v${quote.currentRevision.version}.` });
+    if (actor.onBehalf && evidence) {
+      await tx.portalMessage.create({
+        data: {
+          quoteId: quote.id,
+          revisionId: quote.currentRevision.id,
+          customerUserId: actor.userId,
+          message: onBehalfPortalMessage({ actorName: actorUser.name, version: quote.currentRevision.version, channel: evidence.channel, note: evidence.note }),
+        },
+      });
+    }
     const billing = await generateInitialBilling(tx, { orderId: order.id, quoteId: quote.id, actorId: actor.userId, confirmedAt });
     if (billing.invoiceIds.length) await tx.quote.update({ where: { id: quote.id }, data: { paymentStatus: "UNPAID" } });
-    return { ok: true as const, orderCode: order.code, ...billing };
+    return {
+      ok: true as const,
+      orderCode: order.code,
+      onBehalf: Boolean(actor.onBehalf),
+      quoteCode: quote.code,
+      version: quote.currentRevision.version,
+      totalPaise: quote.currentRevision.totalPaise,
+      customerName: quote.customer.name,
+      customerEmail: quote.customer.email,
+      actorName: actorUser.name,
+      channel: evidence?.channel,
+      note: evidence?.note,
+      ...billing,
+    };
   }, { isolationLevel: "Serializable" });
 }

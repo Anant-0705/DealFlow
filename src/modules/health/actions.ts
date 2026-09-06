@@ -53,10 +53,18 @@ export async function dismissAlert(formData: FormData) {
 export async function completeTask(formData: FormData) {
   const session = await requireRole(["REP", "MANAGER", "FINANCE", "ADMIN"]);
   const taskId = z.coerce.number().int().positive().parse(formData.get("taskId"));
-  await prisma.$transaction(async (tx) => {
+  const completed = await prisma.$transaction(async (tx) => {
     const task = await tx.task.findFirstOrThrow({ where: { id: taskId, assigneeId: session.userId, done: false } });
     await tx.task.update({ where: { id: task.id }, data: { done: true } });
     await logEvent(tx, { entity: "TASK", entityId: task.id, quoteId: task.quoteId, action: "TASK_COMPLETED", actorId: session.userId, reason: task.message, meta: { kind: task.kind } });
+    return { quoteId: task.quoteId, kind: task.kind };
   });
   revalidatePath("/app/dashboard");
+  revalidatePath("/app/deal-health");
+  const quote = await prisma.quote.findUnique({ where: { id: completed.quoteId }, select: { code: true, orders: { select: { code: true }, orderBy: { confirmedAt: "desc" }, take: 1 } } });
+  if (quote) {
+    revalidatePath(`/app/quotations/${quote.code}`);
+    revalidatePath(`/portal/quotes/${quote.code}`);
+    if (quote.orders[0]) revalidatePath(`/app/fulfillment/${quote.orders[0].code}`);
+  }
 }

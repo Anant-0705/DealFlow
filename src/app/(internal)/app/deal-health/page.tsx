@@ -1,4 +1,5 @@
 import { AlertTable } from "@/components/health/AlertTable";
+import { ConfirmationDisputes } from "@/components/health/ConfirmationDisputes";
 import { ExpectedReceipts } from "@/components/health/ExpectedReceipts";
 import { HealthSummaryCards } from "@/components/health/HealthSummaryCards";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -22,6 +23,7 @@ export default async function DealHealthPage({ searchParams }: { searchParams: P
         <div className="panel-heading"><div><span className="eyebrow">Live risk register</span><h2>{kind ? kind.replaceAll("_", " ").toLowerCase() : "All alerts"}</h2></div></div>
         <AlertTable alerts={visible} canAct={canAct} canSchedule={canSchedule} emptyDescription={`Thresholds: stale after ${data.policy.staleAfterDays} days, anomaly +${data.policy.anomalyDeltaBps / 100} pts — edit in Settings → Policy.`}/>
       </section>
+      <ConfirmationDisputes disputes={data.confirmationDisputes}/>
       <ExpectedReceipts receipts={data.expectedReceipts}/>
     </div>
   );

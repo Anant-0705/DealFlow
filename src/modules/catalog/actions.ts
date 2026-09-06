@@ -58,9 +58,24 @@ export async function saveProduct(_previousState: ProductFormState, formData: Fo
   try {
     await prisma.$transaction(async (tx) => {
       const saved = value.id ? await tx.product.update({ where: { id: value.id }, data }) : await tx.product.create({ data });
+      if (!value.id && value.warehouseId) {
+        const warehouse = await tx.warehouse.findFirst({ where: { id: value.warehouseId, active: true }, select: { id: true, name: true } });
+        if (!warehouse) throw new Error("WAREHOUSE");
+        const existing = await tx.stock.findFirst({ where: { warehouseId: warehouse.id, productId: saved.id, variantId: null } });
+        const openingQty = value.openingQty ?? 0;
+        const stock = existing
+          ? await tx.stock.update({ where: { id: existing.id }, data: { onHand: openingQty } })
+          : await tx.stock.create({ data: { warehouseId: warehouse.id, productId: saved.id, variantId: null, onHand: openingQty, reserved: 0 } });
+        await logEvent(tx, { entity: "STOCK", entityId: stock.id, action: "SETTINGS_CHANGED", actorId: session.userId, reason: `${openingQty} units added to ${warehouse.name} with the new product.`, meta: { warehouseId: warehouse.id, productId: saved.id, onHand: openingQty } });
+      }
       await logEvent(tx, { entity: "PRODUCT", entityId: saved.id, action: "SETTINGS_CHANGED", actorId: session.userId, reason: value.id ? "Product updated" : "Product created", meta: data });
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "WAREHOUSE") return {
+      status: "error" as const,
+      message: "Choose an active warehouse for the opening stock.",
+      fieldErrors: { warehouseId: ["Choose an active warehouse."] },
+    };
     if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") return {
       status: "error",
       message: `The SKU ${value.sku} is already used by another product. Enter a unique SKU.`,
@@ -69,6 +84,8 @@ export async function saveProduct(_previousState: ProductFormState, formData: Fo
     throw error;
   }
   revalidatePath("/app/settings/products");
+  revalidatePath("/app/settings/warehouses");
+  revalidatePath("/app/fulfillment");
   if (value.id) {
     revalidatePath(`/app/settings/products/${value.id}`);
   }

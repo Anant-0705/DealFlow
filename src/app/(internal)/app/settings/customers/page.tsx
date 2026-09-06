@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { Check, UserPlus, X } from "lucide-react";
 import { createCustomer, inviteCustomer } from "@/modules/customers/actions";
+import { approveCustomerAccessRequest, rejectCustomerAccessRequest } from "@/modules/customers/access-request-actions";
+import { listPendingCustomerAccessRequests } from "@/modules/customers/access-request-queries";
 import { customerInviteUrl } from "@/modules/customers/links";
 import { inviteMailCopy } from "@/modules/mail/templates";
 import { listCustomers } from "@/modules/customers/queries";
@@ -7,19 +10,83 @@ import { customerBillingGaps } from "@/modules/company/readiness";
 import { CUSTOMER_MANAGER_ROLES } from "@/lib/roles";
 import { requirePageRole } from "@/lib/auth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default async function CustomersSettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ invite?: string; customer?: string; error?: string; mail?: string; to?: string }>;
+  searchParams: Promise<{ invite?: string; customer?: string; error?: string; mail?: string; notice?: string; to?: string }>;
 }) {
-  await requirePageRole(CUSTOMER_MANAGER_ROLES);
-  const [{ invite, customer, error, mail, to }, customers] = await Promise.all([searchParams, listCustomers()]);
+  const session = await requirePageRole(CUSTOMER_MANAGER_ROLES);
+  const [{ invite, customer, error, mail, notice, to }, customers, accessRequests] = await Promise.all([
+    searchParams,
+    listCustomers(),
+    session.role === "ADMIN" ? listPendingCustomerAccessRequests() : Promise.resolve([]),
+  ]);
   const link = invite ? customerInviteUrl(invite) : null;
   const mailed = mail === "sent";
 
   return (
-    <div className="settings-grid">
+    <div className="form-stack">
+      {notice && <Alert><Check aria-hidden="true"/><AlertTitle>Customer access updated</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert>}
+      {session.role === "ADMIN" && (
+        <Card id="access-requests">
+          <CardHeader>
+            <CardTitle>Customer account requests</CardTitle>
+            <CardDescription>Review billing details submitted from “Need an account?”. Approval creates the customer for Sales Reps and sends a one-time portal invitation.</CardDescription>
+            <CardAction><Badge variant={accessRequests.length ? "default" : "secondary"}>{accessRequests.length} pending</Badge></CardAction>
+          </CardHeader>
+          <CardContent>
+            {accessRequests.length ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Primary contact</TableHead>
+                    <TableHead>Billing details</TableHead>
+                    <TableHead>Requested</TableHead>
+                    <TableHead className="text-right">Review</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {accessRequests.map((request) => (
+                    <TableRow key={request.id}>
+                      <TableCell><strong>{request.companyName}</strong><small>{request.gstin}</small></TableCell>
+                      <TableCell><a href={`mailto:${request.email}`}>{request.email}</a><small>{request.phone}</small></TableCell>
+                      <TableCell className="max-w-72 whitespace-normal">{request.billingAddress}</TableCell>
+                      <TableCell>{request.createdAt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          <form action={approveCustomerAccessRequest} className="flex items-center gap-2">
+                            <input type="hidden" name="requestId" value={request.id}/>
+                            <NativeSelect name="tier" defaultValue="SILVER" aria-label={`Tier for ${request.companyName}`}>
+                              <NativeSelectOption value="BRONZE">Bronze</NativeSelectOption>
+                              <NativeSelectOption value="SILVER">Silver</NativeSelectOption>
+                              <NativeSelectOption value="GOLD">Gold</NativeSelectOption>
+                            </NativeSelect>
+                            <SubmitButton size="sm" pendingLabel="Approving…"><UserPlus data-icon="inline-start"/>Approve & invite</SubmitButton>
+                          </form>
+                          <form action={rejectCustomerAccessRequest}>
+                            <input type="hidden" name="requestId" value={request.id}/>
+                            <SubmitButton size="sm" variant="outline" pendingLabel="Dismissing…" aria-label={`Dismiss request from ${request.companyName}`}><X data-icon="inline-start"/>Dismiss</SubmitButton>
+                          </form>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="empty-cell"><UserPlus aria-hidden="true"/><strong>No pending account requests</strong><span>New requests will appear here and on the admin notification bell.</span></div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+      <div className="settings-grid">
       <section className="panel">
         <div className="panel-heading">
           <div>
@@ -114,6 +181,7 @@ export default async function CustomersSettingsPage({
           <button type="submit" className="button primary">Create customer and email invite</button>
         </form>
       </section>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Boxes, CircleDollarSign, FileCheck2, FileText, IndianRupee, Plus, ShieldAlert } from "lucide-react";
+import { Boxes, CircleDollarSign, FileCheck2, FileText, IndianRupee, Plus, ShieldAlert, UserPlus } from "lucide-react";
 import { requireInternal } from "@/lib/auth";
 import { hasRole, QUOTE_EDITOR_ROLES, SETTINGS_ROLES } from "@/lib/roles";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -21,6 +21,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const companyGaps = hasRole(session.role, SETTINGS_ROLES) ? companyIdentityGaps(company) : [];
 
   const metrics = [
+    ...(session.role === "ADMIN" ? [{ label: "Account requests", value: data.metrics.customerAccessRequests, description: "Customers waiting for access", icon: UserPlus, href: "/app/settings/customers#access-requests" }] : []),
     { label: "Pending approvals", value: data.metrics.pendingApprovals, description: "Waiting for a decision", icon: FileCheck2, href: session.role === "REP" ? "/app/quotations?status=pending" : "/app/approvals" },
     { label: "Open quotations", value: data.metrics.openQuotations, description: "Active commercial work", icon: FileText, href: "/app/quotations?status=open" },
     { label: "At-risk deals", value: data.metrics.atRiskDeals, description: "Stalls, anomalies, and slippage", icon: ShieldAlert, href: "/app/deal-health" },

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, FileText, LogOut, Menu, RefreshCw, Search, Settings2 } from "lucide-react";
+import { Bell, FileText, LogOut, Menu, RefreshCw, Search, Settings2, UserPlus } from "lucide-react";
 import type { UserRole } from "@/generated/prisma/enums";
 import { logout } from "@/modules/identity/actions";
 import { reloadWorkspace } from "@/modules/quotes/actions";
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 type CommandQuote = { code: string; customer: { name: string } };
 
-export function TopMenu({ name, role, canConfigure, pendingCount, quotes }: { name: string; role: UserRole; canConfigure: boolean; pendingCount: number; quotes: CommandQuote[] }) {
+export function TopMenu({ name, role, canConfigure, approvalCount, customerRequestCount, quotes }: { name: string; role: UserRole; canConfigure: boolean; approvalCount: number; customerRequestCount: number; quotes: CommandQuote[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -27,6 +27,8 @@ export function TopMenu({ name, role, canConfigure, pendingCount, quotes }: { na
   const previousPath = useRef(pathname);
   const groups = visibleNavigation(role);
   const destinations = useMemo(() => groups.flatMap((group) => group.items), [groups]);
+  const notificationCount = approvalCount + customerRequestCount;
+  const notificationHref = customerRequestCount > 0 ? "/app/settings/customers#access-requests" : role === "REP" ? "/app/quotations?status=pending" : "/app/approvals";
   const navigate = useCallback((href: string) => { setOpen(false); setMobileOpen(false); router.push(href); }, [router]);
 
   useEffect(() => {
@@ -58,20 +60,20 @@ export function TopMenu({ name, role, canConfigure, pendingCount, quotes }: { na
       <div className="context-heading">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger render={<Button variant="ghost" size="icon" className="mobile-menu-trigger" aria-label="Open navigation" />}><Menu /></SheetTrigger>
-          <SheetContent side="left" className="mobile-nav-sheet"><SheetHeader><SheetTitle>DealFlow</SheetTitle><SheetDescription>Navigate your deal workspace.</SheetDescription></SheetHeader><SideNav mobile pendingCount={pendingCount} role={role} onNavigate={() => setMobileOpen(false)}/></SheetContent>
+          <SheetContent side="left" className="mobile-nav-sheet"><SheetHeader><SheetTitle>DealFlow</SheetTitle><SheetDescription>Navigate your deal workspace.</SheetDescription></SheetHeader><SideNav mobile approvalCount={approvalCount} customerRequestCount={customerRequestCount} role={role} onNavigate={() => setMobileOpen(false)}/></SheetContent>
         </Sheet>
         <div><span className="context-kicker">{currentLabel}</span><div className="breadcrumbs"><Link href="/app/dashboard">Workspace</Link>{crumbs.map((crumb, index) => <Fragment key={`${crumb}-${index}`}><span>/</span><span>{crumb}</span></Fragment>)}</div></div>
       </div>
       <div className="context-actions">
         <Button variant="outline" className="command-trigger" onClick={() => setOpen(true)}><Search data-icon="inline-start"/><span>Search workspace</span><kbd>⌘K</kbd></Button>
-        <Link href={role === "REP" ? "/app/quotations?status=pending" : "/app/approvals"} className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "approval-trigger")} aria-label={`${pendingCount} pending approvals`}><Bell/><span>{pendingCount}</span></Link>
+        <Link href={notificationHref} className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "approval-trigger")} aria-label={`${approvalCount} pending approvals and ${customerRequestCount} customer account requests`}><Bell/>{notificationCount > 0 && <span>{notificationCount}</span>}</Link>
         <DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" className="identity-trigger" />}><span className="identity-mini">{name.split(" ").map((part) => part[0]).slice(0, 2).join("")}</span><span className="menu-label">{name}</span></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuGroup><DropdownMenuLabel>{name} · {role}</DropdownMenuLabel><DropdownMenuItem onClick={refresh}><RefreshCw/>Refresh workspace</DropdownMenuItem>{canConfigure && <DropdownMenuItem onClick={() => navigate("/app/settings")}><Settings2/>Settings</DropdownMenuItem>}</DropdownMenuGroup><DropdownMenuSeparator/><form action={logout} className="dropdown-signout"><DropdownMenuGroup><DropdownMenuItem nativeButton render={<button type="submit" />}><LogOut/>Sign out</DropdownMenuItem></DropdownMenuGroup></form></DropdownMenuContent></DropdownMenu>
       </div>
     </div>
     {message && <div className="toast" role="status">{message}</div>}
     <CommandDialog open={open} onOpenChange={setOpen} title="Search DealFlow" description="Navigate, search quotations, or start a new quotation.">
       <CommandInput placeholder="Search destinations and quotations…" />
-      <CommandList><CommandEmpty>No matching workspace action.</CommandEmpty><CommandGroup heading="Navigate">{destinations.map((item) => <CommandItem key={item.href} value={`${item.label} ${item.href}`} onSelect={() => navigate(item.href)}><item.icon/><span>{item.label}</span><CommandShortcut>G {item.shortcut}</CommandShortcut></CommandItem>)}</CommandGroup>{(role === "REP" || role === "ADMIN") && <CommandGroup heading="Actions"><CommandItem onSelect={() => navigate("/app/quotations/new")}><FileText/><span>New quotation</span><CommandShortcut>N</CommandShortcut></CommandItem></CommandGroup>}<CommandGroup heading="Recent quotations">{quotes.map((quote) => <CommandItem key={quote.code} value={`${quote.code} ${quote.customer.name}`} onSelect={() => navigate(`/app/quotations/${quote.code}`)}><FileText/><span>{quote.code} · {quote.customer.name}</span></CommandItem>)}</CommandGroup></CommandList>
+      <CommandList><CommandEmpty>No matching workspace action.</CommandEmpty><CommandGroup heading="Navigate">{destinations.map((item) => <CommandItem key={item.href} value={`${item.label} ${item.href}`} onSelect={() => navigate(item.href)}><item.icon/><span>{item.label}</span><CommandShortcut>G {item.shortcut}</CommandShortcut></CommandItem>)}</CommandGroup>{(role === "REP" || role === "ADMIN") && <CommandGroup heading="Actions"><CommandItem onSelect={() => navigate("/app/quotations/new")}><FileText/><span>New quotation</span><CommandShortcut>N</CommandShortcut></CommandItem>{role === "ADMIN" && customerRequestCount > 0 && <CommandItem onSelect={() => navigate("/app/settings/customers#access-requests")}><UserPlus/><span>Review {customerRequestCount} account request{customerRequestCount === 1 ? "" : "s"}</span></CommandItem>}</CommandGroup>}<CommandGroup heading="Recent quotations">{quotes.map((quote) => <CommandItem key={quote.code} value={`${quote.code} ${quote.customer.name}`} onSelect={() => navigate(`/app/quotations/${quote.code}`)}><FileText/><span>{quote.code} · {quote.customer.name}</span></CommandItem>)}</CommandGroup></CommandList>
     </CommandDialog>
   </>;
 }

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DealFlowLogo } from "@/components/shared/DealFlowLogo";
 
-export function SideNav({ pendingCount, role, mobile = false, onNavigate }: { pendingCount: number; role: UserRole; mobile?: boolean; onNavigate?: () => void }) {
+export function SideNav({ approvalCount, customerRequestCount, role, mobile = false, onNavigate }: { approvalCount: number; customerRequestCount: number; role: UserRole; mobile?: boolean; onNavigate?: () => void }) {
   const path = usePathname();
   const groups = visibleNavigation(role);
 
@@ -29,7 +29,8 @@ export function SideNav({ pendingCount, role, mobile = false, onNavigate }: { pe
             const link = <Link href={href} className={cn(active && "active")} aria-current={active ? "page" : undefined} onClick={onNavigate}>
               <Icon aria-hidden="true" />
               <span>{label}</span>
-              {label === "Approvals" && pendingCount > 0 && <Badge variant="secondary">{pendingCount}</Badge>}
+              {label === "Approvals" && approvalCount > 0 && <Badge variant="secondary">{approvalCount}</Badge>}
+              {label === "Settings" && customerRequestCount > 0 && <Badge>{customerRequestCount}</Badge>}
               <kbd>{shortcut}</kbd>
             </Link>;
             return <Tooltip key={href}><TooltipTrigger render={link}/><TooltipContent side="right">{label}</TooltipContent></Tooltip>;

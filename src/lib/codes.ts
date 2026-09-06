@@ -8,6 +8,11 @@ export async function nextQuoteCode(db: CodeDb) {
   return `Q-${Math.max(1042, numeric + 1)}`;
 }
 
+export async function nextCustomerCode(db: CodeDb) {
+  const last = await db.customer.findFirst({ orderBy: { id: "desc" }, select: { code: true } });
+  return nextCode(last?.code, "C", 1001);
+}
+
 async function nextCode(current: string | undefined, prefix: string, floor: number) {
   const numeric = current ? Number(current.replace(/\D/g, "")) : floor - 1;
   return `${prefix}-${Math.max(floor, numeric + 1)}`;

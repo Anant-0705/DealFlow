@@ -3,6 +3,7 @@ type Bucket = { count: number; resetAt: number };
 const WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX = 8;
 const MAIL_MAX = 5;
+const ACCESS_REQUEST_MAX = 3;
 const attempts = new Map<string, Bucket>();
 
 function prune(now: number) {
@@ -34,6 +35,10 @@ export function consumeLoginAttempt(email: string) {
 
 export function consumeMailAttempt(email: string) {
   return consume("mail", email, MAIL_MAX);
+}
+
+export function consumeAccessRequestAttempt(email: string) {
+  return consume("access-request", email, ACCESS_REQUEST_MAX);
 }
 
 export function clearLoginAttempts(email: string) {

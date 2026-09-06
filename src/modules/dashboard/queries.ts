@@ -20,8 +20,9 @@ export async function getDashboardData(session: AppSession) {
         : { status: "PENDING" as const, revision: { currentForQuote: { isNot: null } } };
 
   const now = new Date();
-  const [pendingApprovals, openQuotations, awaitingFulfillment, unpaidInvoices, revenue, recentActivity, tasks, health] = await Promise.all([
+  const [pendingApprovals, customerAccessRequests, openQuotations, awaitingFulfillment, unpaidInvoices, revenue, recentActivity, tasks, health] = await Promise.all([
     prisma.approvalStep.count({ where: approvalWhere }),
+    session.role === "ADMIN" ? prisma.customerAccessRequest.count({ where: { status: "PENDING" } }) : Promise.resolve(0),
     prisma.quote.count({ where: { ...ownedQuote, customerStatus: { in: ["DRAFT", "SENT", "NEGOTIATING"] }, approvalStatus: { not: "REJECTED" } } }),
     prisma.order.count({ where: { quote: { ...ownedQuote, fulfillmentStatus: { in: ["PLANNED", "PARTIAL"] } } } }),
     prisma.invoice.findMany({ where: { status: { in: ["UNPAID", "PARTIAL"] }, order: { quote: ownedQuote } }, select: { totalPaise: true, paidPaise: true, creditNotes: { select: { amountPaise: true } } } }),
@@ -34,6 +35,7 @@ export async function getDashboardData(session: AppSession) {
   return {
     metrics: {
       pendingApprovals,
+      customerAccessRequests,
       openQuotations,
       atRiskDeals: health.alerts.length,
       awaitingFulfillment,

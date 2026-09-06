@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { consumeLoginAttempt, consumeMailAttempt, resetRateLimitsForTests } from "./rate-limit";
+import { consumeAccessRequestAttempt, consumeLoginAttempt, consumeMailAttempt, resetRateLimitsForTests } from "./rate-limit";
 
 afterEach(() => {
   resetRateLimitsForTests();
@@ -15,6 +15,12 @@ describe("rate limits", () => {
   it("limits password-reset mail separately from login", () => {
     for (let i = 0; i < 5; i++) expect(consumeMailAttempt("buyer@acme.test").ok).toBe(true);
     expect(consumeMailAttempt("buyer@acme.test").ok).toBe(false);
+    expect(consumeLoginAttempt("buyer@acme.test").ok).toBe(true);
+  });
+
+  it("limits public customer access requests separately", () => {
+    for (let i = 0; i < 3; i++) expect(consumeAccessRequestAttempt("buyer@acme.test").ok).toBe(true);
+    expect(consumeAccessRequestAttempt("buyer@acme.test").ok).toBe(false);
     expect(consumeLoginAttempt("buyer@acme.test").ok).toBe(true);
   });
 });

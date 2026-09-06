@@ -16,7 +16,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
           </div>
         </div>
         <CardTitle>Request customer portal access</CardTitle>
-        <CardDescription>Share your primary billing details. An administrator will verify the request, create your customer record, and email a secure activation link.</CardDescription>
+        <CardDescription>Share your company name, contact, and billing address. An administrator will verify the request, create your customer record, and email a secure activation link.</CardDescription>
       </CardHeader>
       <CardContent>
         {error && <Alert variant="destructive"><AlertTitle>Account access</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}

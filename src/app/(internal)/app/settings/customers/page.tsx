@@ -55,7 +55,7 @@ export default async function CustomersSettingsPage({
                 <TableBody>
                   {accessRequests.map((request) => (
                     <TableRow key={request.id}>
-                      <TableCell><strong>{request.companyName}</strong><small>{request.gstin}</small></TableCell>
+                      <TableCell><strong>{request.companyName}</strong>{request.gstin ? <small>{request.gstin}</small> : null}</TableCell>
                       <TableCell><a href={`mailto:${request.email}`}>{request.email}</a><small>{request.phone}</small></TableCell>
                       <TableCell className="max-w-72 whitespace-normal">{request.billingAddress}</TableCell>
                       <TableCell>{request.createdAt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</TableCell>

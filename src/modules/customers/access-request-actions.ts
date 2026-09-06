@@ -51,7 +51,7 @@ export async function submitCustomerAccessRequest(
     return { status: "success", message: successMessage };
   }
 
-  const data = { ...parsed.data, status: "PENDING" as const, customerId: null, reviewedById: null, reviewedAt: null };
+  const data = { ...parsed.data, gstin: "", status: "PENDING" as const, customerId: null, reviewedById: null, reviewedAt: null };
   if (existingRequest) {
     await prisma.customerAccessRequest.update({ where: { id: existingRequest.id }, data });
   } else {

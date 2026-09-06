@@ -39,28 +39,23 @@ export function CustomerAccessRequestForm() {
       <FieldGroup>
         <Field data-invalid={Boolean(fieldErrors?.companyName)}>
           <FieldLabel htmlFor="companyName">Company or customer name</FieldLabel>
-          <Input id="companyName" name="companyName" autoComplete="organization" required minLength={2} maxLength={120} aria-invalid={Boolean(fieldErrors?.companyName)} placeholder="Acme Corporation" />
+          <Input id="companyName" name="companyName" autoComplete="organization" required minLength={2} maxLength={120} aria-invalid={Boolean(fieldErrors?.companyName)} />
           <FieldError errors={errors(fieldErrors?.companyName)} />
         </Field>
         <Field data-invalid={Boolean(fieldErrors?.email)}>
           <FieldLabel htmlFor="email">Primary contact email</FieldLabel>
-          <Input id="email" name="email" type="email" autoComplete="email" required maxLength={254} aria-invalid={Boolean(fieldErrors?.email)} placeholder="buyer@company.com" />
+          <Input id="email" name="email" type="email" autoComplete="email" required maxLength={254} aria-invalid={Boolean(fieldErrors?.email)} />
           <FieldDescription>The activation invitation will be sent here after approval.</FieldDescription>
           <FieldError errors={errors(fieldErrors?.email)} />
         </Field>
         <Field data-invalid={Boolean(fieldErrors?.phone)}>
           <FieldLabel htmlFor="phone">Phone</FieldLabel>
-          <Input id="phone" name="phone" type="tel" autoComplete="tel" required maxLength={20} aria-invalid={Boolean(fieldErrors?.phone)} placeholder="+91 80 2222 1001" />
+          <Input id="phone" name="phone" type="tel" autoComplete="tel" required maxLength={20} aria-invalid={Boolean(fieldErrors?.phone)} />
           <FieldError errors={errors(fieldErrors?.phone)} />
-        </Field>
-        <Field data-invalid={Boolean(fieldErrors?.gstin)}>
-          <FieldLabel htmlFor="gstin">GSTIN</FieldLabel>
-          <Input id="gstin" name="gstin" autoCapitalize="characters" required minLength={15} maxLength={15} aria-invalid={Boolean(fieldErrors?.gstin)} placeholder="29AABCA1234A1Z5" />
-          <FieldError errors={errors(fieldErrors?.gstin)} />
         </Field>
         <Field data-invalid={Boolean(fieldErrors?.billingAddress)}>
           <FieldLabel htmlFor="billingAddress">Billing address</FieldLabel>
-          <Textarea id="billingAddress" name="billingAddress" autoComplete="street-address" required minLength={8} maxLength={240} rows={3} aria-invalid={Boolean(fieldErrors?.billingAddress)} placeholder="Street, city, state, PIN" />
+          <Textarea id="billingAddress" name="billingAddress" autoComplete="street-address" required minLength={8} maxLength={240} rows={3} aria-invalid={Boolean(fieldErrors?.billingAddress)} />
           <FieldError errors={errors(fieldErrors?.billingAddress)} />
         </Field>
       </FieldGroup>

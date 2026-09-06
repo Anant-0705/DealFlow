@@ -8,54 +8,62 @@ import { uploadToStorage } from "@/lib/storage";
 import { productSchema, variantSchema, type ProductFormState } from "./schemas";
 
 export async function saveProduct(_previousState: ProductFormState, formData: FormData): Promise<ProductFormState> {
-  const session = await requireRole(["ADMIN"]);
-  const parsed = productSchema.safeParse(formObject(formData));
-  if (!parsed.success) return {
-    status: "error",
-    message: "We could not save this product. Review the fields below and try again.",
-    fieldErrors: parsed.error.flatten().fieldErrors,
-  };
-  const value = parsed.data;
-
-  let imageUrl: string | null | undefined = undefined;
-  const imageFile = formData.get("image");
-  const removeImage = formData.get("removeImage");
-
-  if (imageFile instanceof File && imageFile.size > 0) {
-    if (!["image/png", "image/jpeg", "image/webp"].includes(imageFile.type)) {
-      return {
-        status: "error",
-        message: "Please upload a PNG, JPEG, or WebP image file.",
-        fieldErrors: { image: ["Upload a PNG, JPEG, or WebP image."] },
-      };
-    }
-    const uploaded = await uploadToStorage({
-      file: imageFile,
-      filename: imageFile.name,
-      contentType: imageFile.type,
-      folder: "products",
-    });
-    imageUrl = uploaded.url;
-  } else if (removeImage === "on" || removeImage === "true") {
-    imageUrl = null;
-  }
-
-  const data = {
-    name: value.name,
-    sku: value.sku,
-    categoryId: value.categoryId,
-    unit: value.unit,
-    taxBps: Math.round(value.taxPercent * 100),
-    listPricePaise: Math.round(value.listPriceRupees * 100),
-    costPaise: Math.round(value.costRupees * 100),
-    description: value.description,
-    isSubscription: value.isSubscription,
-    planId: value.isSubscription ? value.planId : null,
-    isPromoted: value.isPromoted,
-    active: value.active,
-    ...(imageUrl !== undefined ? { imageUrl } : {}),
-  };
   try {
+    const session = await requireRole(["ADMIN"]);
+    const parsed = productSchema.safeParse(formObject(formData));
+    if (!parsed.success) return {
+      status: "error",
+      message: "We could not save this product. Review the fields below and try again.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+    const value = parsed.data;
+
+    let imageUrl: string | null | undefined = undefined;
+    const imageFile = formData instanceof FormData ? formData.get("image") : null;
+    const removeImage = formData instanceof FormData ? formData.get("removeImage") : null;
+
+    if (imageFile instanceof File && imageFile.size > 0) {
+      if (!["image/png", "image/jpeg", "image/webp"].includes(imageFile.type)) {
+        return {
+          status: "error",
+          message: "Please upload a PNG, JPEG, or WebP image file.",
+          fieldErrors: { image: ["Upload a PNG, JPEG, or WebP image."] },
+        };
+      }
+      try {
+        const uploaded = await uploadToStorage({
+          file: imageFile,
+          filename: imageFile.name,
+          contentType: imageFile.type,
+          folder: "products",
+        });
+        imageUrl = uploaded.url;
+      } catch {
+        return {
+          status: "error",
+          message: "The product image could not be stored. Save without an image, or check storage settings.",
+          fieldErrors: { image: ["Image upload failed."] },
+        };
+      }
+    } else if (removeImage === "on" || removeImage === "true") {
+      imageUrl = null;
+    }
+
+    const data = {
+      name: value.name,
+      sku: value.sku,
+      categoryId: value.categoryId,
+      unit: value.unit,
+      taxBps: Math.round(value.taxPercent * 100),
+      listPricePaise: Math.round(value.listPriceRupees * 100),
+      costPaise: Math.round(value.costRupees * 100),
+      description: value.description,
+      isSubscription: value.isSubscription,
+      planId: value.isSubscription ? value.planId : null,
+      isPromoted: value.isPromoted,
+      active: value.active,
+      ...(imageUrl !== undefined ? { imageUrl } : {}),
+    };
     await prisma.$transaction(async (tx) => {
       const saved = value.id ? await tx.product.update({ where: { id: value.id }, data }) : await tx.product.create({ data });
       if (!value.id && value.warehouseId) {
@@ -70,26 +78,33 @@ export async function saveProduct(_previousState: ProductFormState, formData: Fo
       }
       await logEvent(tx, { entity: "PRODUCT", entityId: saved.id, action: "SETTINGS_CHANGED", actorId: session.userId, reason: value.id ? "Product updated" : "Product created", meta: data });
     });
+    revalidatePath("/app/settings/products");
+    revalidatePath("/app/settings/warehouses");
+    revalidatePath("/app/fulfillment");
+    if (value.id) {
+      revalidatePath(`/app/settings/products/${value.id}`);
+    }
+    return { status: "success", message: value.id ? "Product updated successfully." : "Product created successfully." };
   } catch (error) {
     if (error instanceof Error && error.message === "WAREHOUSE") return {
-      status: "error" as const,
+      status: "error",
       message: "Choose an active warehouse for the opening stock.",
       fieldErrors: { warehouseId: ["Choose an active warehouse."] },
     };
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") return {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+      const target = "meta" in error && error.meta && typeof error.meta === "object" && "target" in error.meta ? String(error.meta.target) : "";
+      if (target.includes("sku")) return {
+        status: "error",
+        message: "That SKU is already used by another product. Enter a unique SKU.",
+        fieldErrors: { sku: ["This SKU already exists."] },
+      };
+    }
+    console.error("saveProduct failed", error);
+    return {
       status: "error",
-      message: `The SKU ${value.sku} is already used by another product. Enter a unique SKU.`,
-      fieldErrors: { sku: ["This SKU already exists."] },
+      message: "We could not save this product. Check the details and try again.",
     };
-    throw error;
   }
-  revalidatePath("/app/settings/products");
-  revalidatePath("/app/settings/warehouses");
-  revalidatePath("/app/fulfillment");
-  if (value.id) {
-    revalidatePath(`/app/settings/products/${value.id}`);
-  }
-  return { status: "success", message: value.id ? "Product updated successfully." : "Product created successfully." };
 }
 
 export async function saveVariant(formData: FormData) {

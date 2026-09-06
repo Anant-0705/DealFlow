@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { Upload } from "lucide-react";
 import { saveProduct } from "@/modules/catalog/actions";
-import type { ProductFormState } from "@/modules/catalog/schemas";
+import { MAX_OPENING_QTY, type ProductFormState } from "@/modules/catalog/schemas";
 
 type Category = { id: number; name: string };
 type Plan = { id: number; name: string };
@@ -32,7 +32,25 @@ export function ProductForm({ categories, plans, warehouses = [], product }: { c
   const [isSubscription, setIsSubscription] = useState(product?.isSubscription ?? false);
   const [fileName, setFileName] = useState<string>("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(product?.imageUrl ?? null);
-  const error = (field: string) => state.fieldErrors?.[field]?.[0];
+  const [openingQty, setOpeningQty] = useState("0");
+  const [openingQtyHint, setOpeningQtyHint] = useState("");
+  const error = (field: string) => state.fieldErrors?.[field]?.[0] ?? (field === "openingQty" ? openingQtyHint : "");
+  const onOpeningQtyChange = (raw: string) => {
+    const digits = raw.replace(/\D/g, "");
+    if (digits === "") {
+      setOpeningQty("");
+      setOpeningQtyHint("");
+      return;
+    }
+    const next = Number(digits);
+    if (!Number.isSafeInteger(next) || next > MAX_OPENING_QTY) {
+      setOpeningQty(String(MAX_OPENING_QTY));
+      setOpeningQtyHint(`Opening stock cannot exceed ${MAX_OPENING_QTY.toLocaleString("en-IN")}.`);
+      return;
+    }
+    setOpeningQty(String(next));
+    setOpeningQtyHint("");
+  };
 
   return <form action={formAction} className="panel form-stack">
     {product && <input type="hidden" name="id" value={product.id}/>}
@@ -108,11 +126,11 @@ export function ProductForm({ categories, plans, warehouses = [], product }: { c
     {!product && (
       <div className="form-row">
         <label>Warehouse *<select name="warehouseId" required defaultValue={warehouses[0]?.id ?? ""} aria-invalid={Boolean(error("warehouseId"))}><option value="" disabled>Choose a warehouse</option>{warehouses.map((warehouse) => <option value={warehouse.id} key={warehouse.id}>{warehouse.name}</option>)}</select>{error("warehouseId") ? <small className="field-error">{error("warehouseId")}</small> : <small className="form-help">{warehouses.length ? "Opening stock is listed in Fulfillment for this warehouse." : "Create a warehouse in Settings → Warehouses first."}</small>}</label>
-        <label>Opening stock *<input name="openingQty" type="number" min="0" max="1000000" defaultValue={0} required aria-invalid={Boolean(error("openingQty"))}/>{error("openingQty") ? <small className="field-error">{error("openingQty")}</small> : <small className="form-help">Units available in the selected warehouse. Use 0 if stock will arrive later.</small>}</label>
+        <label>Opening stock *<input name="openingQty" type="text" inputMode="numeric" pattern="[0-9]*" minLength={1} maxLength={7} value={openingQty} required aria-invalid={Boolean(error("openingQty"))} onChange={(event) => onOpeningQtyChange(event.target.value)}/>{error("openingQty") ? <small className="field-error">{error("openingQty")}</small> : <small className="form-help">Units available in the selected warehouse. Use 0 if stock will arrive later. Maximum {MAX_OPENING_QTY.toLocaleString("en-IN")}.</small>}</label>
       </div>
     )}
     <label className="check"><input type="checkbox" name="isSubscription" defaultChecked={isSubscription} onChange={(event) => setIsSubscription(event.target.checked)}/>Subscription product</label>
-    <label>Billing plan{isSubscription ? " *" : ""}<select name="planId" defaultValue={product?.planId ?? ""} disabled={!isSubscription} required={isSubscription} aria-invalid={Boolean(error("planId"))}><option value="">Choose a billing plan</option>{plans.map((plan) => <option value={plan.id} key={plan.id}>{plan.name}</option>)}</select><small className={error("planId") ? "field-error" : "form-help"}>{error("planId") ?? (isSubscription ? "Required because this product has recurring billing." : "Enable Subscription product only for recurring items.")}</small></label>
+    {isSubscription ? <label>Billing plan *<select name="planId" defaultValue={product?.planId ?? ""} required aria-invalid={Boolean(error("planId"))}><option value="">Choose a billing plan</option>{plans.map((plan) => <option value={plan.id} key={plan.id}>{plan.name}</option>)}</select><small className={error("planId") ? "field-error" : "form-help"}>{error("planId") ?? "Required because this product has recurring billing."}</small></label> : null}
     <div className="form-row"><label className="check"><input type="checkbox" name="isPromoted" defaultChecked={product?.isPromoted}/>Promoted</label><label className="check"><input type="checkbox" name="active" defaultChecked={product?.active ?? true}/>Active (available in quotations)</label></div>
     <button className="button primary" disabled={pending}>{pending ? "Saving…" : product ? "Save product" : "Create product"}</button>
   </form>;

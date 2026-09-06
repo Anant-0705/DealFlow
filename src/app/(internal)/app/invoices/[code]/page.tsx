@@ -40,6 +40,9 @@ export default async function InvoicePage({
   const shipped = invoice.order.lines.some((line) => line.allocations.some((allocation) => Boolean(allocation.shippedAt)));
   const today = new Date().toISOString().slice(0, 10);
 
+  const subtotalPaise = invoice.lines.reduce((sum, line) => sum + (line.unitPaise * line.qty), 0);
+  const totalTaxPaise = invoice.lines.reduce((sum, line) => sum + line.taxPaise, 0);
+
   return <div className="invoice-page">
     <Link className="back-link no-print" href="/app/invoices">← Invoices</Link>
     {query.notice && <Alert className="no-print"><AlertDescription>{query.notice}</AlertDescription></Alert>}
@@ -50,7 +53,44 @@ export default async function InvoicePage({
 
     <Card>
       <CardHeader><CardTitle>Invoice lines</CardTitle><CardDescription>Amounts and taxes captured from the confirmed quotation.</CardDescription></CardHeader>
-      <CardContent><Table><TableHeader><TableRow><TableHead>Description</TableHead><TableHead>Qty</TableHead><TableHead>Unit</TableHead><TableHead>Tax</TableHead><TableHead>Total</TableHead></TableRow></TableHeader><TableBody>{invoice.lines.map((line) => <TableRow key={line.id}><TableCell>{line.description}</TableCell><TableCell>{line.qty}</TableCell><TableCell>{formatMoney(line.unitPaise)}</TableCell><TableCell>{formatMoney(line.taxPaise)}</TableCell><TableCell><strong>{formatMoney(line.totalPaise)}</strong></TableCell></TableRow>)}</TableBody></Table></CardContent>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Description</TableHead>
+              <TableHead>Qty</TableHead>
+              <TableHead>Unit</TableHead>
+              <TableHead>Tax</TableHead>
+              <TableHead>Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {invoice.lines.map((line) => (
+              <TableRow key={line.id}>
+                <TableCell>{line.description}</TableCell>
+                <TableCell>{line.qty}</TableCell>
+                <TableCell>{formatMoney(line.unitPaise)}</TableCell>
+                <TableCell>{formatMoney(line.taxPaise)}</TableCell>
+                <TableCell><strong>{formatMoney(line.totalPaise)}</strong></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+          <tfoot>
+            <tr style={{ borderTop: "2px solid var(--line, #e2d4c7)", fontWeight: 600 }}>
+              <td colSpan={4} style={{ textAlign: "right", padding: "10px" }}>Subtotal (excl. tax):</td>
+              <td style={{ padding: "10px" }}>{formatMoney(subtotalPaise)}</td>
+            </tr>
+            <tr style={{ fontWeight: 600, color: "var(--muted)" }}>
+              <td colSpan={4} style={{ textAlign: "right", padding: "6px 10px" }}>Total Tax:</td>
+              <td style={{ padding: "6px 10px" }}>{formatMoney(totalTaxPaise)}</td>
+            </tr>
+            <tr style={{ borderTop: "1px solid var(--line, #e2d4c7)", fontWeight: 800, fontSize: "14px" }}>
+              <td colSpan={4} style={{ textAlign: "right", padding: "10px" }}>Invoice Total:</td>
+              <td style={{ padding: "10px" }}>{formatMoney(invoice.totalPaise)}</td>
+            </tr>
+          </tfoot>
+        </Table>
+      </CardContent>
     </Card>
 
     <div className="invoice-detail-grid">

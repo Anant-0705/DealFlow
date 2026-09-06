@@ -89,6 +89,8 @@ h3 { font-size:14px; }
 .button.danger { color:var(--red) !important; background:#fff0ed; border-color:#e9bcbc; }
 .button.danger:hover { background:#fce6e3; border-color:#da6b5b; }
 .button.small { min-height:31px; padding:0 10px; font-size:11px; }
+input[type="file"]::file-selector-button { min-height:34px; padding:0 14px; margin-right:12px; border-radius:8px; border:1px solid #cfbfb2; background:#ede0d4; color:#302925; font-family:inherit; font-size:12px; font-weight:750; cursor:pointer; box-shadow:0 1px 3px rgba(83,61,51,.08); transition:.16s ease; }
+input[type="file"]::file-selector-button:hover { background:#dfcdc0; border-color:#bea294; box-shadow:0 2px 6px rgba(83,61,51,.12); }
 .back-link { display:inline-flex; align-items:center; gap:3px; margin-bottom:13px; color:var(--muted); font-size:12px; font-weight:650; }
 .back-link:hover { color:var(--green); }
 .panel,.card { border:1px solid var(--line); border-radius:13px; background:var(--paper); box-shadow:0 1px 2px rgba(21,37,27,.025); }
@@ -945,5 +947,145 @@ button[type="submit"]:hover:not(:disabled),
   background: #f5ebe0;
   border-color: #bea294;
   color: #1a1512 !important;
+}
+
+/* Quotation revision flow */
+.revision-flow-bar {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--line, #e2d4c7);
+  border-radius: 12px;
+  background: #fbf8f5;
+  box-shadow: 0 1px 4px rgba(60, 40, 30, 0.04);
+}
+.revision-flow-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.revision-flow-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.revision-flow-title .eyebrow {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #725a4e);
+  font-weight: 700;
+}
+.revision-pills {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.revision-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--line, #e2d4c7);
+  background: #ffffff;
+  color: var(--ink, #1a1512);
+  font-size: 12px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+.revision-pill:hover {
+  border-color: #bea294;
+  background: #f5ebe0;
+  transform: translateY(-1px);
+}
+.revision-pill.revision-pill-selected {
+  border-color: #725a4e;
+  background: #f5ebe0;
+  box-shadow: 0 0 0 1px #725a4e;
+}
+.revision-pill-version {
+  font-weight: 800;
+  color: var(--ink, #1a1512);
+}
+.revision-pill-amount {
+  font-weight: 600;
+  color: var(--muted, #725a4e);
+  font-size: 11px;
+}
+.revision-pill-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.revision-pill-badge.badge-current {
+  background: #dff0e4;
+  color: #1a5b2d;
+}
+.revision-pill-badge.badge-archived {
+  background: #ebe6e2;
+  color: #725a4e;
+}
+.historical-banner {
+  border-left: 4px solid #d97706;
+  background: #fffdf5;
+}
+
+/* Quotation line heading and actions */
+.quotation-lines-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.cart-heading-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.quote-line-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.order-discount {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink, #1a1512);
+}
+.order-discount > div {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line, #e2d4c7);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 4px 10px;
+  gap: 4px;
+}
+.order-discount input {
+  width: 54px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+  color: var(--ink, #1a1512);
+  outline: none;
+}
+.order-discount b {
+  color: var(--muted, #725a4e);
+  font-size: 12px;
 }
 

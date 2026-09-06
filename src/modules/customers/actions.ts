@@ -21,11 +21,15 @@ const customerSchema = z.object({
   tier: z.enum(["BRONZE", "SILVER", "GOLD"]),
   email: emailSchema,
   phone: z.string().trim().regex(/^[+0-9][0-9\s-]{7,19}$/, "Enter a valid customer phone number."),
-  gstin: z.string().trim().toUpperCase().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, "Enter a 15-character customer GSTIN."),
   billingAddress: z.string().trim().min(8, "Enter the billing address.").max(240),
 });
-const billingSchema = customerSchema.pick({ name: true, email: true, phone: true, gstin: true, billingAddress: true });
-const portalBillingSchema = customerSchema.pick({ phone: true, gstin: true, billingAddress: true });
+const gstinSchema = z.string().trim().toUpperCase().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, "Enter a 15-character customer GSTIN.");
+const billingSchema = customerSchema.omit({ tier: true }).extend({ gstin: gstinSchema });
+const portalBillingSchema = z.object({
+  phone: customerSchema.shape.phone,
+  gstin: gstinSchema,
+  billingAddress: customerSchema.shape.billingAddress,
+});
 const inviteSchema = z.object({ customerId: z.coerce.number().int().positive(), email: emailSchema });
 const acceptSchema = z.object({
   token: z.string().trim().min(32).max(200),
@@ -75,7 +79,7 @@ export async function createCustomer(formData: FormData) {
   if (blocked) redirect(errorPath(blocked));
   const issued = await prisma.$transaction(async (tx) => {
     const code = await nextCustomerCode(tx);
-    const customer = await tx.customer.create({ data: { name: parsed.data.name, code, tier: parsed.data.tier, email: parsed.data.email, phone: parsed.data.phone, gstin: parsed.data.gstin, billingAddress: parsed.data.billingAddress } });
+    const customer = await tx.customer.create({ data: { name: parsed.data.name, code, tier: parsed.data.tier, email: parsed.data.email, phone: parsed.data.phone, gstin: "", billingAddress: parsed.data.billingAddress } });
     const token = await issueInvite(tx, customer.id, parsed.data.email, session.userId);
     await logEvent(tx, { entity: "CUSTOMER", entityId: customer.id, action: "SETTINGS_CHANGED", actorId: session.userId, reason: `Created ${customer.name} and issued a portal invitation to ${parsed.data.email}.` });
     return { customerName: customer.name, token };

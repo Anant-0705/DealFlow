@@ -175,7 +175,6 @@ export default async function CustomersSettingsPage({
           </label>
           <label>Primary contact email<input name="email" type="email" required maxLength={254} /></label>
           <label>Phone<input name="phone" required maxLength={20} /></label>
-          <label>GSTIN<input name="gstin" required minLength={15} maxLength={15} /></label>
           <label>Billing address<textarea name="billingAddress" required minLength={8} maxLength={240} rows={3} /></label>
           <button type="submit" className="button primary">Create customer and email invite</button>
         </form>

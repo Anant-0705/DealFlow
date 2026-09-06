@@ -58,7 +58,7 @@ export function TopMenu({ name, role, canConfigure, pendingCount, quotes }: { na
       <div className="context-heading">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger render={<Button variant="ghost" size="icon" className="mobile-menu-trigger" aria-label="Open navigation" />}><Menu /></SheetTrigger>
-          <SheetContent side="left" className="mobile-nav-sheet"><SheetHeader><SheetTitle>AccordFlow</SheetTitle><SheetDescription>Navigate your deal workspace.</SheetDescription></SheetHeader><SideNav mobile pendingCount={pendingCount} role={role} onNavigate={() => setMobileOpen(false)}/></SheetContent>
+          <SheetContent side="left" className="mobile-nav-sheet"><SheetHeader><SheetTitle>DealFlow</SheetTitle><SheetDescription>Navigate your deal workspace.</SheetDescription></SheetHeader><SideNav mobile pendingCount={pendingCount} role={role} onNavigate={() => setMobileOpen(false)}/></SheetContent>
         </Sheet>
         <div><span className="context-kicker">{currentLabel}</span><div className="breadcrumbs"><Link href="/app/dashboard">Workspace</Link>{crumbs.map((crumb, index) => <Fragment key={`${crumb}-${index}`}><span>/</span><span>{crumb}</span></Fragment>)}</div></div>
       </div>

@@ -48,7 +48,21 @@ export default async function InvoicePage({
     {query.notice && <Alert className="no-print"><AlertDescription>{query.notice}</AlertDescription></Alert>}
     {query.error && <Alert className="no-print" variant="destructive"><AlertDescription>{query.error}</AlertDescription></Alert>}
     <DocumentReadyAlert gaps={documents.gaps} customerName={invoice.order.quote.customer.name} customerHref={`/app/settings/customers/${invoice.order.quote.customer.code}`} action="print this invoice" />
-    <div className="page-header"><div><div className="eyebrow">{invoice.order.quote.customer.name} · {invoice.kind.replaceAll("_", " ")}</div><h1>{invoice.code}</h1><p>Issued {invoice.issuedAt.toLocaleDateString("en-IN")} · Due {invoice.dueAt.toLocaleDateString("en-IN")}</p></div><div className="invoice-balance"><StatusBadge status={invoice.status}/><strong>{formatMoney(balance)}</strong><span>balance due</span></div></div>
+    <div className="page-header">
+      <div>
+        <div className="eyebrow">{invoice.order.quote.customer.name} · {invoice.kind.replaceAll("_", " ")}</div>
+        <h1>{invoice.code}</h1>
+        <p>Issued {invoice.issuedAt.toLocaleDateString("en-IN")} · Due {invoice.dueAt.toLocaleDateString("en-IN")}</p>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+        <div className="invoice-balance">
+          <StatusBadge status={invoice.status}/>
+          <strong>{formatMoney(balance)}</strong>
+          <span>balance due</span>
+        </div>
+        <PrintButton invoiceCode={invoice.code}/>
+      </div>
+    </div>
     <InvoiceStepper confirmed shipped={shipped} invoiced paid={invoice.status === "PAID" || invoice.status === "CREDITED"}/>
 
     <Card>
@@ -115,6 +129,5 @@ export default async function InvoicePage({
       <Card><CardHeader><CardTitle>Record payment</CardTitle><CardDescription>References are idempotent and cannot be recorded twice.</CardDescription></CardHeader><CardContent><form action={recordPayment} className="form-stack"><input type="hidden" name="invoiceCode" value={invoice.code}/><FieldGroup><Field><FieldLabel htmlFor="payment-amount">Amount ₹</FieldLabel><Input id="payment-amount" name="amountRupees" type="number" min="0.01" max={balance / 100} step="0.01" defaultValue={balance / 100}/></Field><Field><FieldLabel htmlFor="payment-reference">Reference</FieldLabel><Input id="payment-reference" name="reference" defaultValue={`PAY-${invoice.code}-${today.replaceAll("-", "")}-${invoice.payments.length + 1}`} required/></Field><div className="form-row"><Field><FieldLabel htmlFor="payment-method">Method</FieldLabel><NativeSelect id="payment-method" name="method"><NativeSelectOption>Bank transfer</NativeSelectOption><NativeSelectOption>Card</NativeSelectOption><NativeSelectOption>Cheque</NativeSelectOption><NativeSelectOption>Cash</NativeSelectOption></NativeSelect></Field><Field><FieldLabel htmlFor="payment-date">Received</FieldLabel><Input id="payment-date" name="receivedAt" type="date" defaultValue={today}/></Field></div></FieldGroup><Button type="submit" disabled={balance <= 0}>Record payment</Button></form></CardContent></Card>
       <Card><CardHeader><CardTitle>Manual credit note</CardTitle><CardDescription>Reduce the outstanding invoice balance with an auditable reason.</CardDescription></CardHeader><CardContent><form action={issueCreditNote} className="form-stack"><input type="hidden" name="invoiceId" value={invoice.id}/><input type="hidden" name="invoiceCode" value={invoice.code}/><FieldGroup><Field><FieldLabel htmlFor="credit-amount">Amount ₹</FieldLabel><Input id="credit-amount" name="amountRupees" type="number" min="0.01" max={Math.max(0, balance / 100)} step="0.01"/></Field><Field><FieldLabel htmlFor="credit-reason">Reason</FieldLabel><Textarea id="credit-reason" name="reason" required minLength={3}/></Field></FieldGroup><Button type="submit" variant="outline" disabled={balance <= 0}>Issue credit</Button></form></CardContent></Card>
     </div>
-    <PrintButton invoiceCode={invoice.code}/>
   </div>;
 }

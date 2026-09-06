@@ -4,8 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   ArrowRight,
   Check,
+  CheckCircle2,
   CreditCard,
   FileCheck2,
   FileText,
@@ -17,6 +19,7 @@ import {
 import { login } from "@/modules/identity/actions";
 import { evaluateRevision } from "@/modules/pricing/engine";
 import { mountLandingScroll } from "./scrollcraft";
+import { DealFlowLogo } from "@/components/shared/DealFlowLogo";
 
 const policy = {
   tierCeilingBronzeBps: 500,
@@ -96,9 +99,9 @@ export function LandingPage() {
   return (
     <main ref={rootRef} className="landing-page" data-sc-mode="live-surface" data-sc-signature="approval-ladder">
       <header className="landing-header">
-        <Link className="landing-wordmark" href="/" aria-label="AccordFlow home">
-          <span className="landing-mark" aria-hidden="true"><Image src="/landing/dealflow-mark.png" alt="" width={28} height={28} priority /></span>
-          <span>AccordFlow</span>
+        <Link className="landing-wordmark" href="/" aria-label="DealFlow home">
+          <span className="landing-mark" aria-hidden="true"><DealFlowLogo size={30} /></span>
+          <span>DealFlow</span>
         </Link>
         <nav className="landing-nav" aria-label="Landing page navigation">
           <a href="#thread">How it reasons</a>
@@ -110,7 +113,6 @@ export function LandingPage() {
 
       <section className="landing-hero" aria-labelledby="landing-title" data-landing-reveal>
         <div className="landing-hero-copy">
-          <p className="landing-kicker">Deal governance for the whole quote-to-cash thread</p>
           <h1 id="landing-title">Quote-to-cash <span>that shows its work.</span></h1>
           <p className="landing-lede">Every exception has a reason, every handoff has an owner, and every revision keeps its history.</p>
           <div className="landing-hero-actions">
@@ -121,14 +123,74 @@ export function LandingPage() {
         </div>
 
         <div className="decision-demo" aria-label="Interactive pricing decision demo">
-          <div className="decision-demo-topline"><span>Q-1042 · working revision</span><span className="decision-status">{routeLabel(evaluation.requiredLevel)}</span></div>
-          <div className="decision-line"><div className="decision-line-main"><span className="decision-product-icon"><PackageCheck aria-hidden="true" /></span><div><strong>Revenue operations bundle</strong><span>2 seats · Gold tier · annual</span></div></div><span className="decision-ceiling">ceiling 15%</span></div>
-          <label className="decision-slider-label" htmlFor="discount-slider"><span>Line discount</span><strong>{discount}%</strong></label>
-          <input id="discount-slider" className="decision-slider" type="range" min="12" max="18" step="1" value={discount} onChange={(event) => setDiscount(Number(event.target.value))} />
-          <div className="decision-range" aria-hidden="true"><span>12% auto</span><span>18% reviewed</span></div>
-          <div className="decision-reason" aria-live="polite"><span className="reason-label">Generated reason</span><p>{lineReason}</p></div>
-          <div className="decision-metrics"><div><span>Requires</span><strong>{routeLabel(evaluation.requiredLevel)}</strong></div><div><span>Excess</span><strong>{evaluation.maxLineExcessBps / 100}%</strong></div><div><span>Value</span><strong>₹{excessValue}</strong></div></div>
-          <div className="decision-engine"><span className="engine-pulse" /> Pricing engine live · policy evaluated client-side</div>
+          <div className="decision-demo-header">
+            <div>
+              <div className="decision-demo-title">Revenue operations bundle</div>
+              <div className="decision-demo-meta">Q-1042 · Gold tier · 15% ceiling</div>
+            </div>
+            <span className={`decision-status-pill ${evaluation.requiredLevel === "NONE" ? "is-approved" : "is-manager"}`}>
+              {evaluation.requiredLevel === "NONE" ? (
+                <>
+                  <CheckCircle2 size={13} aria-hidden="true" />
+                  <span>Auto-approved</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle size={13} aria-hidden="true" />
+                  <span>Manager Review</span>
+                </>
+              )}
+            </span>
+          </div>
+
+          <div className="decision-slider-row">
+            <div className="decision-slider-labels">
+              <label htmlFor="discount-slider">Line discount</label>
+              <strong>{discount}%</strong>
+            </div>
+            <input
+              id="discount-slider"
+              className="decision-slider"
+              type="range"
+              min="12"
+              max="18"
+              step="1"
+              value={discount}
+              style={{ "--slider-pct": `${((discount - 12) / (18 - 12)) * 100}%` } as React.CSSProperties}
+              onChange={(event) => setDiscount(Number(event.target.value))}
+            />
+            <div className="decision-slider-scale">
+              <span>12%</span>
+              <span className="ceiling-mark">15% ceiling</span>
+              <span>18%</span>
+            </div>
+          </div>
+
+          <p className="decision-simple-reason" aria-live="polite">
+            <span className={`reason-dot ${evaluation.requiredLevel === "NONE" ? "dot-green" : "dot-amber"}`} />
+            <span>{lineReason}</span>
+          </p>
+
+          <div className="decision-simple-metrics">
+            <div>
+              <span>Requires</span>
+              <strong className={evaluation.requiredLevel === "NONE" ? "text-green" : "text-amber"}>
+                {routeLabel(evaluation.requiredLevel)}
+              </strong>
+            </div>
+            <div>
+              <span>Excess</span>
+              <strong className={evaluation.maxLineExcessBps > 0 ? "text-amber" : ""}>
+                {evaluation.maxLineExcessBps > 0 ? `+${(evaluation.maxLineExcessBps / 100).toFixed(0)}%` : "0%"}
+              </strong>
+            </div>
+            <div>
+              <span>At risk</span>
+              <strong className={evaluation.excessValuePaise > 0 ? "text-amber" : ""}>
+                ₹{excessValue}
+              </strong>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -148,9 +210,12 @@ export function LandingPage() {
       <section className="landing-access" id="access" aria-labelledby="access-title" data-landing-reveal><div className="section-heading"><p className="landing-kicker">Open the workspace</p><h2 id="access-title">Choose a role. Start inside the real flow.</h2><p>No signup funnel and no staged screenshots. These accounts use the application&apos;s real authentication path.</p></div><div className="demo-grid">{demoAccounts.map(([role, email, name], index) => <form action={login} className="demo-card" key={email}><input type="hidden" name="email" value={email} /><input type="hidden" name="password" value="demo1234" /><span className="demo-index">0{index + 1}</span><span className="demo-role">{role}</span><strong>{name}</strong><code>{email}</code><button type="submit">Enter workspace <ArrowRight data-icon="inline-end" /></button></form>)}</div></section>
 
       <footer className="landing-footer">
-        <div>
-          <strong>AccordFlow</strong>
-          <span>Quote-to-cash with an audit trail.</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <DealFlowLogo size={32} />
+          <div>
+            <strong>DealFlow</strong>
+            <span>Quote-to-cash with an audit trail.</span>
+          </div>
         </div>
       </footer>
     </main>

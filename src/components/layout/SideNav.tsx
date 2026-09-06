@@ -6,6 +6,7 @@ import { visibleNavigation } from "./navigation";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DealFlowLogo } from "@/components/shared/DealFlowLogo";
 
 export function SideNav({ pendingCount, role, mobile = false, onNavigate }: { pendingCount: number; role: UserRole; mobile?: boolean; onNavigate?: () => void }) {
   const path = usePathname();
@@ -14,9 +15,9 @@ export function SideNav({ pendingCount, role, mobile = false, onNavigate }: { pe
   return (
     <aside className={cn("sidebar", mobile && "sidebar-mobile")}>
       <Link className="brand" href="/app/dashboard">
-        <span className="brand-mark" aria-hidden="true">A</span>
+        <DealFlowLogo size={32} />
         <span>
-          AccordFlow
+          DealFlow
           <small>Deal governance</small>
         </span>
       </Link>

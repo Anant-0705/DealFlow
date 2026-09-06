@@ -7,9 +7,16 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: "DealFlow | Deal governance",
+  title: "DealFlow",
   description: "Explainable sales operations from quotation to cash.",
-  icons: { icon: "/landing/dealflow-mark.png" },
+  icons: {
+    icon: [
+      { url: "/branding/dealflow-logo.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    shortcut: "/branding/dealflow-logo.svg",
+    apple: "/branding/dealflow-logo.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

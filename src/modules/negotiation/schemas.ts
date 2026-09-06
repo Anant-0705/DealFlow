@@ -13,11 +13,20 @@ export const messageSchema = z.object({
   text: z.string().trim().min(2).max(2000),
 });
 
+const counterRequestSchema = z.object({
+  lineId: z.coerce.number().int().positive(),
+  proposedDiscountBps: z.coerce.number().int().min(0).max(10_000),
+});
+
 export const counterSchema = z.object({
   quoteCode: z.string().trim().min(1),
-  lineId: optionalLineIdSchema,
-  proposedDiscountBps: z.coerce.number().int().min(0).max(10_000),
+  requests: z.array(counterRequestSchema).min(1, "Select at least one product.").max(100),
   text: z.string().trim().max(2000).optional(),
+}).superRefine((value, ctx) => {
+  const lineIds = value.requests.map((request) => request.lineId);
+  if (new Set(lineIds).size !== lineIds.length) {
+    ctx.addIssue({ code: "custom", path: ["requests"], message: "Each product can only be selected once." });
+  }
 });
 
 export const confirmSchema = z.object({ quoteCode: z.string().trim().min(1), revisionId: z.coerce.number().int().positive() });

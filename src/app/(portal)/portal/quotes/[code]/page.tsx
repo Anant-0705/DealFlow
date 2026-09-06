@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { formatMoney, formatPercent } from "@/lib/money";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { LineCommentBox } from "@/components/portal/LineCommentBox";
 import { CounterOfferForm } from "@/components/portal/CounterOfferForm";
 import { ConfirmButton } from "@/components/portal/ConfirmButton";
 import { MessageThread } from "@/components/portal/MessageThread";
@@ -39,9 +38,9 @@ export default async function PortalQuotePage({
     <DocumentReadyAlert gaps={documents.gaps} customerName={quote.customer.name} customerHref="/portal/profile" companyHref={null} action="confirm this quotation" />
 
     <Card>
-      <CardHeader><CardTitle>Quotation lines</CardTitle><CardDescription>Current commercial terms and line-level change requests.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>Quotation lines</CardTitle><CardDescription>Review the current commercial terms before requesting discount changes below.</CardDescription></CardHeader>
       <CardContent>
-        <Table><TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Variant</TableHead><TableHead>Qty</TableHead><TableHead>Unit price</TableHead><TableHead>Discount</TableHead><TableHead>Net</TableHead><TableHead/></TableRow></TableHeader><TableBody>{quote.currentRevision.lines.map((line) => <TableRow key={line.id}><TableCell>{line.description}</TableCell><TableCell>{line.variant?.attributeValue ?? "—"}</TableCell><TableCell>{line.qty}</TableCell><TableCell>{formatMoney(line.unitPricePaise)}</TableCell><TableCell>{formatPercent(line.lineDiscountBps, 1)}</TableCell><TableCell><strong>{formatMoney(line.netPaise)}</strong></TableCell><TableCell><LineCommentBox quoteCode={quote.code} lineId={line.id}/></TableCell></TableRow>)}</TableBody></Table>
+        <Table><TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Variant</TableHead><TableHead>Qty</TableHead><TableHead>Unit price</TableHead><TableHead>Discount</TableHead><TableHead>Net</TableHead></TableRow></TableHeader><TableBody>{quote.currentRevision.lines.map((line) => <TableRow key={line.id}><TableCell>{line.description}</TableCell><TableCell>{line.variant?.attributeValue ?? "—"}</TableCell><TableCell>{line.qty}</TableCell><TableCell>{formatMoney(line.unitPricePaise)}</TableCell><TableCell>{formatPercent(line.lineDiscountBps, 1)}</TableCell><TableCell><strong>{formatMoney(line.netPaise)}</strong></TableCell></TableRow>)}</TableBody></Table>
         <div className="portal-totals"><span>Subtotal <b>{formatMoney(quote.currentRevision.subtotalPaise)}</b></span><span>Discount <b>−{formatMoney(quote.currentRevision.discountPaise)}</b></span><span>Tax <b>{formatMoney(quote.currentRevision.taxPaise)}</b></span><span className="grand">Total <b>{formatMoney(quote.currentRevision.totalPaise)}</b></span></div>
       </CardContent>
     </Card>

@@ -57,10 +57,22 @@ export async function postMessage(formData: FormData) {
 
 export async function proposeCounter(formData: FormData) {
   const session = await requireRole(["CUSTOMER"]);
+  const selectedLineIds = String(formData.get("selectedLineIds") ?? "")
+    .split(",")
+    .map((lineId) => lineId.trim())
+    .filter(Boolean)
+    .map(Number);
   const value = counterSchema.parse({
     quoteCode: formData.get("quoteCode"),
-    lineId: nullableNumber(formData.get("lineId")),
-    proposedDiscountBps: Math.round(Number(formData.get("proposedPercent")) * 100),
+    requests: selectedLineIds.map((lineId) => {
+      const rawPercent = formData.get(`discount-${lineId}`);
+      return {
+        lineId,
+        proposedDiscountBps: rawPercent === null || String(rawPercent).trim() === ""
+          ? Number.NaN
+          : Math.round(Number(rawPercent) * 100),
+      };
+    }),
     text: String(formData.get("text") ?? ""),
   });
 
@@ -70,7 +82,9 @@ export async function proposeCounter(formData: FormData) {
       include: { customer: true, currentRevision: { include: { lines: { include: { product: { include: { category: true } } } } } } },
     });
     if (!quote?.currentRevision) throw new Error("Quotation not found.");
-    if (value.lineId && !quote.currentRevision.lines.some((line) => line.id === value.lineId)) throw new Error("Quotation line not found.");
+    const quoteLineIds = new Set(quote.currentRevision.lines.map((line) => line.id));
+    if (value.requests.some((request) => !quoteLineIds.has(request.lineId))) throw new Error("Quotation line not found.");
+    const requestedByLineId = new Map(value.requests.map((request) => [request.lineId, request.proposedDiscountBps]));
     const policy = await tx.discountPolicy.findUniqueOrThrow({ where: { id: 1 } });
     const proposed = quote.currentRevision.lines.map((line) => ({
       productId: line.productId,
@@ -83,7 +97,7 @@ export async function proposeCounter(formData: FormData) {
       unitPricePaise: line.unitPricePaise,
       unitCostPaise: line.unitCostPaise,
       taxBps: line.product.taxBps,
-      lineDiscountBps: !value.lineId || line.id === value.lineId ? value.proposedDiscountBps : line.lineDiscountBps,
+      lineDiscountBps: requestedByLineId.get(line.id) ?? line.lineDiscountBps,
     }));
     const evaluation = evaluateRevision({ customerTier: quote.customer.tier, policy, orderDiscountBps: quote.currentRevision.orderDiscountBps, lines: proposed });
     await tx.approvalStep.updateMany({ where: { revisionId: quote.currentRevision.id }, data: { status: "STALE" } });
@@ -126,14 +140,27 @@ export async function proposeCounter(formData: FormData) {
       if (evaluation.requiredLevel === "FINANCE") await tx.approvalStep.create({ data: { revisionId: revision.id, level: "FINANCE", sequence: 2 } });
     }
     await tx.quote.update({ where: { id: quote.id }, data: { currentRevisionId: revision.id, approvalStatus: evaluation.requiredLevel === "NONE" ? "APPROVED" : "PENDING", customerStatus: "NEGOTIATING", lastActivityAt: new Date() } });
-    const messageText = value.text || `Customer proposed ${value.proposedDiscountBps / 100}% discount${value.lineId ? " on one line" : " on all lines"}.`;
-    const message = await tx.portalMessage.create({ data: { quoteId: quote.id, revisionId: revision.id, customerUserId: session.userId, message: messageText, proposedDiscountBps: value.proposedDiscountBps } });
+    const requestSummary = value.requests.map((request) => {
+      const line = quote.currentRevision!.lines.find((candidate) => candidate.id === request.lineId)!;
+      return `${line.description}: ${request.proposedDiscountBps / 100}%`;
+    }).join(", ");
+    const messageText = value.text
+      ? `${value.text}\nRequested discounts: ${requestSummary}.`
+      : `Customer requested discounts: ${requestSummary}.`;
+    const message = await tx.portalMessage.create({ data: {
+      quoteId: quote.id,
+      revisionId: revision.id,
+      customerUserId: session.userId,
+      message: messageText,
+      proposedDiscountBps: value.requests.length === 1 ? value.requests[0].proposedDiscountBps : null,
+    } });
     await logEvent(tx, { entity: "REVISION", entityId: revision.id, quoteId: quote.id, action: "REVISED", actorId: session.userId, reason: `Customer created v${revision.version} from v${quote.currentRevision.version}.`, meta: { fromVersion: quote.currentRevision.version, toVersion: revision.version, via: "PORTAL" } });
-    await logEvent(tx, { entity: "PORTAL_MESSAGE", entityId: message.id, quoteId: quote.id, action: "COUNTER_PROPOSED", actorId: session.userId, reason: messageText, meta: { proposedDiscountBps: value.proposedDiscountBps, lineId: value.lineId ?? null } });
+    await logEvent(tx, { entity: "PORTAL_MESSAGE", entityId: message.id, quoteId: quote.id, action: "COUNTER_PROPOSED", actorId: session.userId, reason: messageText, meta: { requests: value.requests } });
     await logEvent(tx, { entity: "REVISION", entityId: revision.id, quoteId: quote.id, action: evaluation.requiredLevel === "NONE" ? "AUTO_APPROVED" : "SUBMITTED", actorId: session.userId, reason: evaluation.reasons.join(" ") || "Counter-offer remains within policy.", meta: { reasons: evaluation.reasons } });
     return revision.version;
   }, { isolationLevel: "Serializable" });
   revalidatePath(`/portal/quotes/${value.quoteCode}`);
+  revalidatePath("/portal");
   revalidatePath("/app/approvals");
   redirect(`/portal/quotes/${value.quoteCode}?notice=Counter-offer+submitted+as+v${result}`);
 }

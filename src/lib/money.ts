@@ -6,7 +6,13 @@ const inr = new Intl.NumberFormat("en-IN", {
 });
 
 export function formatMoney(paise: number) {
-  return inr.format(paise / 100);
+  const hasFraction = Math.abs(paise % 100) > 0;
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: hasFraction ? 2 : 0,
+    maximumFractionDigits: 2,
+  }).format(paise / 100);
 }
 
 export function formatPercent(bps: number, digits = 0) {

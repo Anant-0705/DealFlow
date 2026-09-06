@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/money";
 import { getBuilderData, getQuoteDetail } from "@/modules/quotes/queries";
 import { requireInternal } from "@/lib/auth";
-import { sendToCustomer, confirmOnBehalf, postMessage, replyAndRevise, acceptCounter } from "@/modules/negotiation/actions";
+import { sendToCustomer, postMessage, replyAndRevise, acceptCounter } from "@/modules/negotiation/actions";
 import { getTimeline } from "@/modules/timeline/queries";
 import { getQuoteFulfillmentPreview } from "@/modules/inventory/queries";
 import { getQuoteBillingPreview } from "@/modules/billing/queries";
@@ -97,7 +97,6 @@ export default async function QuotePage({
       <div className="deal-actions">
         {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus === "SENT" && <Button type="button" variant="outline" disabled>Sent to customer</Button>}
         {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && quote.customerStatus !== "SENT" && <form action={sendToCustomer}><input type="hidden" name="quoteCode" value={quote.code}/><SubmitButton pendingLabel="Sending…">Send to customer</SubmitButton></form>}
-        {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && <form action={confirmOnBehalf}><input type="hidden" name="quoteCode" value={quote.code}/><input type="hidden" name="revisionId" value={quote.currentRevision.id}/><Button type="submit" variant="outline">Confirm on behalf</Button></form>}
         {!isHistorical && quote.currentRevision.createdVia === "PORTAL" && <form action={acceptCounter}><input type="hidden" name="quoteCode" value={quote.code}/><Button type="submit" variant="secondary">Accept counter</Button></form>}
         {quote.orders[0] && <Link className={buttonVariants({ variant: "outline" })} href={`/app/fulfillment/${quote.orders[0].code}`}>Open {quote.orders[0].code}</Link>}
         <DocumentActions printHref={`/app/print/quote/${quote.code}`} pdfHref={`/app/print/quote/${quote.code}/pdf`} />
@@ -111,6 +110,6 @@ export default async function QuotePage({
 
     {tab === "fulfillment" && <Card><CardHeader><CardTitle>Live warehouse outcome</CardTitle><CardDescription>Preview only. Stock is reserved after confirmation.</CardDescription></CardHeader><CardContent>{fulfillment && <SplitPlanTable plan={fulfillment}/>}</CardContent></Card>}
 
-    {tab === "billing" && <Card><CardHeader><CardTitle>Confirmation billing</CardTitle><CardDescription>Preview only. No invoice has been issued.</CardDescription></CardHeader><CardContent>{billing && <><div className="plan-summary"><span>One-time invoice <b>{formatMoney(billing.oneTimePaise)}</b></span><span>First recurring bill <b>{formatMoney(billing.firstRecurringPaise)}</b></span></div><div className="line-list">{billing.lines.map((line, index) => <div key={`${line.description}-${index}`}><span>{line.description}<small>{line.detail}</small></span><b>{formatMoney(line.amountPaise)}</b></div>)}</div></>}</CardContent></Card>}
+    {tab === "billing" && <Card><CardHeader><CardTitle>Billing schedule</CardTitle><CardDescription>Preview only. Stock items are invoiced only as they are shipped.</CardDescription></CardHeader><CardContent>{billing && <><div className="plan-summary"><span>At confirmation <b>{formatMoney(billing.confirmationPaise)}</b></span><span>On shipment <b>{formatMoney(billing.fulfillmentPaise)}</b></span><span>First recurring bill <b>{formatMoney(billing.firstRecurringPaise)}</b></span></div><div className="line-list">{billing.lines.map((line, index) => <div key={`${line.description}-${index}`}><span>{line.description}<small>{line.detail}</small></span><b>{formatMoney(line.amountPaise)}</b></div>)}</div></>}</CardContent></Card>}
   </div>;
 }

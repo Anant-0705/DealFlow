@@ -33,7 +33,7 @@ export default async function PortalInvoicePage({
   const company = documents.company;
   const customer = invoice.order.quote.customer;
 
-  const subtotalPaise = invoice.lines.reduce((sum, line) => sum + (line.unitPaise * line.qty), 0);
+  const subtotalPaise = invoice.lines.reduce((sum, line) => sum + line.totalPaise - line.taxPaise, 0);
   const totalTaxPaise = invoice.lines.reduce((sum, line) => sum + line.taxPaise, 0);
   const creditsPaise = invoice.creditNotes.reduce((sum, c) => sum + c.amountPaise, 0);
   const paidPaise = invoice.paidPaise;

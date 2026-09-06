@@ -149,6 +149,7 @@ enum SubscriptionStatus {
 
 enum InvoiceKind {
   ONE_TIME
+  FULFILLMENT
   RECURRING
   PRORATION
 }
@@ -655,17 +656,18 @@ model OrderLine {
 }
 
 model Allocation {
-  id          Int       @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   orderLineId Int
-  orderLine   OrderLine @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  orderLine   OrderLine    @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
   warehouseId Int
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  warehouse   Warehouse    @relation(fields: [warehouseId], references: [id])
   qty         Int
-  reserved    Boolean   @default(false)
+  reserved    Boolean      @default(false)
   reason      String
   shippedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  invoiceLine InvoiceLine?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   @@index([orderLineId])
   @@index([warehouseId])
@@ -770,18 +772,20 @@ model Invoice {
 }
 
 model InvoiceLine {
-  id          Int        @id @default(autoincrement())
-  invoiceId   Int
-  invoice     Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  orderLineId Int?
-  orderLine   OrderLine? @relation(fields: [orderLineId], references: [id])
-  description String
-  qty         Int
-  unitPaise   Int
-  taxPaise    Int
-  totalPaise  Int
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id           Int         @id @default(autoincrement())
+  invoiceId    Int
+  invoice      Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  orderLineId  Int?
+  orderLine    OrderLine?  @relation(fields: [orderLineId], references: [id])
+  allocationId Int?        @unique
+  allocation   Allocation? @relation(fields: [allocationId], references: [id], onDelete: SetNull)
+  description  String
+  qty          Int
+  unitPaise    Int
+  taxPaise     Int
+  totalPaise   Int
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@index([invoiceId])
   @@index([orderLineId])

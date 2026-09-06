@@ -40,7 +40,7 @@ export default async function InvoicePage({
   const shipped = invoice.order.lines.some((line) => line.allocations.some((allocation) => Boolean(allocation.shippedAt)));
   const today = new Date().toISOString().slice(0, 10);
 
-  const subtotalPaise = invoice.lines.reduce((sum, line) => sum + (line.unitPaise * line.qty), 0);
+  const subtotalPaise = invoice.lines.reduce((sum, line) => sum + line.totalPaise - line.taxPaise, 0);
   const totalTaxPaise = invoice.lines.reduce((sum, line) => sum + line.taxPaise, 0);
 
   return <div className="invoice-page">
@@ -117,7 +117,7 @@ export default async function InvoicePage({
         <Card>
           <CardHeader>
             <CardTitle>Pay online</CardTitle>
-            <CardDescription>Cashfree sandbox checkout. The invoice is created at confirmation; this collects the outstanding balance.</CardDescription>
+            <CardDescription>Cashfree sandbox checkout for this invoice&apos;s outstanding balance.</CardDescription>
           </CardHeader>
           <CardContent>
             {!gateway.configured && <p className="muted">Set CASHFREE_APP_ID and CASHFREE_SECRET_KEY to enable checkout.</p>}

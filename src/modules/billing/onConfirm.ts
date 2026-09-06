@@ -4,6 +4,7 @@ import { logEvent } from "@/lib/audit";
 import { calendarPeriod, prorate } from "./prorate";
 import { taxOnNet } from "./invoice-balance";
 import { ensureUpcomingPeriods, recordInvoicedPeriod } from "./periods";
+import { lineRequiresStock } from "@/modules/inventory/fulfillment-status";
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86_400_000);
 
@@ -13,24 +14,26 @@ export async function generateInitialBilling(
 ) {
   const order = await db.order.findUniqueOrThrow({
     where: { id: input.orderId },
-    include: { lines: { include: { product: { include: { plan: true } }, quoteLine: true } } },
+    include: { lines: { include: { product: { include: { plan: true, category: true } }, quoteLine: true } } },
   });
-  const oneTime = order.lines.filter((line) => !line.product.isSubscription);
+  const oneTimeAtConfirmation = order.lines.filter((line) =>
+    !line.product.isSubscription && !lineRequiresStock(line.product),
+  );
   const recurring = order.lines.filter((line) => line.product.isSubscription && line.product.planId);
   const invoiceIds: number[] = [];
   const subscriptionIds: number[] = [];
 
-  if (oneTime.length) {
+  if (oneTimeAtConfirmation.length) {
     const code = await nextInvoiceCode(db);
     const invoice = await db.invoice.create({
       data: {
         code,
         orderId: order.id,
         kind: "ONE_TIME",
-        totalPaise: oneTime.reduce((sum, line) => sum + line.quoteLine.netPaise + line.quoteLine.taxPaise, 0),
+        totalPaise: oneTimeAtConfirmation.reduce((sum, line) => sum + line.quoteLine.netPaise + line.quoteLine.taxPaise, 0),
         issuedAt: input.confirmedAt,
         dueAt: addDays(input.confirmedAt, 15),
-        lines: { create: oneTime.map((line) => ({
+        lines: { create: oneTimeAtConfirmation.map((line) => ({
           orderLineId: line.id,
           description: line.quoteLine.description,
           qty: line.qty,
@@ -41,7 +44,7 @@ export async function generateInitialBilling(
       },
     });
     invoiceIds.push(invoice.id);
-    await logEvent(db, { entity: "INVOICE", entityId: invoice.id, quoteId: input.quoteId, action: "INVOICE_ISSUED", actorId: input.actorId, reason: `${code} issued for one-time lines.` });
+    await logEvent(db, { entity: "INVOICE", entityId: invoice.id, quoteId: input.quoteId, action: "INVOICE_ISSUED", actorId: input.actorId, reason: `${code} issued for non-stock one-time lines.` });
   }
 
   for (const line of recurring) {

@@ -45,10 +45,11 @@ export async function confirmQuotation(quoteCode: string, revisionId: number, ac
     );
     const promised = quote.promisedDeliveryDate ?? promisedDeliveryDate({ confirmedAt, plan, warehouses, receipts });
     const order = await createOrderFromRevision(tx, { quoteId: quote.id, revisionId, confirmedAt, promisedDeliveryDate: promised });
-    await tx.quote.update({ where: { id: quote.id }, data: { customerStatus: "CONFIRMED", fulfillmentStatus: "PLANNED", paymentStatus: "UNPAID", lastActivityAt: confirmedAt } });
+    await tx.quote.update({ where: { id: quote.id }, data: { customerStatus: "CONFIRMED", fulfillmentStatus: "PLANNED", paymentStatus: "NONE", lastActivityAt: confirmedAt } });
     await logEvent(tx, { entity: "QUOTE", entityId: quote.id, quoteId: quote.id, action: "CONFIRMED", actorId: actor.userId, reason: actor.onBehalf ? "Confirmed on behalf of the customer." : "Customer confirmed the quotation.", meta: { revisionId, onBehalf: Boolean(actor.onBehalf) } });
     await logEvent(tx, { entity: "ORDER", entityId: order.id, quoteId: quote.id, action: "ORDER_CREATED", actorId: actor.userId, reason: `${order.code} created from ${quote.code} v${quote.currentRevision.version}.` });
     const billing = await generateInitialBilling(tx, { orderId: order.id, quoteId: quote.id, actorId: actor.userId, confirmedAt });
+    if (billing.invoiceIds.length) await tx.quote.update({ where: { id: quote.id }, data: { paymentStatus: "UNPAID" } });
     return { ok: true as const, orderCode: order.code, ...billing };
   }, { isolationLevel: "Serializable" });
 }

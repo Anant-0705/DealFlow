@@ -6,7 +6,7 @@ import Link from "next/link";
 import { evaluateRevision } from "@/modules/pricing/engine";
 import { parseDismissed, suggestOffers, type OfferCard, type OfferKind } from "@/modules/upsell/suggest";
 import { dismissOffer, reviseQuote, saveDraft, submitForApproval } from "@/modules/quotes/actions";
-import { confirmOnBehalf, sendToCustomer } from "@/modules/negotiation/actions";
+import { sendToCustomer } from "@/modules/negotiation/actions";
 import { LineRow, type BuilderLine } from "./LineRow";
 import { TotalsPanel } from "./TotalsPanel";
 import { OfferPanel } from "./UpsellPanel";
@@ -113,7 +113,7 @@ export function QuoteBuilder({ quote, products, policy, pairings, stock, warehou
     try {
       const result = await submitForApproval(payload());
       setSubmittedLevel(result.requiredLevel);
-      setNotice(result.requiredLevel === "NONE" ? "Quote auto-approved and sent directly to the customer. Draft controls are now locked." : "Quote submitted to the approval inbox. Draft controls are now locked.");
+      setNotice(result.requiredLevel === "NONE" ? "Quote auto-approved and sent directly to the customer." : "Quote submitted to the approval inbox.");
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -194,7 +194,6 @@ export function QuoteBuilder({ quote, products, policy, pairings, stock, warehou
                   </>}
                   {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus === "SENT" && <Badge variant="secondary"><Check aria-hidden="true"/>Sent to customer</Badge>}
                   {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && quote.customerStatus !== "SENT" && <form action={sendToCustomer}><input type="hidden" name="quoteCode" value={quote.code}/><SubmitButton pendingLabel="Sending…"><Send data-icon="inline-start"/>Send to customer</SubmitButton></form>}
-                  {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && <form action={confirmOnBehalf}><input type="hidden" name="quoteCode" value={quote.code}/><input type="hidden" name="revisionId" value={quote.currentRevision.id}/><Button type="submit" variant="outline"><Check data-icon="inline-start"/>Confirm on behalf</Button></form>}
                 </div>
                 <label className="order-discount"><span>Order discount</span><div><input disabled={!editable} type="number" min="0" max="100" step="0.1" value={orderDiscountBps / 100} onChange={(event) => setOrderDiscountBps(Math.round(Number(event.target.value) * 100))}/><b>%</b></div></label>
               </div>

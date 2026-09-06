@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { logEvent } from "@/lib/audit";
@@ -9,6 +10,7 @@ import { reserveSuggestedAllocations, lockProductStock } from "./reserve";
 import { findConsolidatableBackorders } from "./receipts";
 import { promisedDeliveryDate } from "./promise";
 import { fulfillmentStatusForLines, orderAlreadyPlanned } from "./fulfillment-status";
+import { issueFulfillmentInvoice } from "@/modules/billing/fulfillment";
 
 async function requireMatchingVariant(tx: Parameters<typeof logEvent>[0], productId: number, variantId: number | null) {
   if (variantId === null) return;
@@ -190,19 +192,45 @@ export async function consolidateBackorder(formData: FormData) {
 export async function markShipped(formData: FormData) {
   const session = await requireRole(["FINANCE", "ADMIN"]);
   const allocationId = Number(formData.get("allocationId"));
-  const orderCode = String(formData.get("orderCode") ?? "");
-  await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     await tx.$queryRawUnsafe<Array<{ id: number }>>('SELECT "id" FROM "Allocation" WHERE "id" = $1 FOR UPDATE', allocationId);
-    const allocation = await tx.allocation.findUniqueOrThrow({ where: { id: allocationId }, include: { orderLine: { include: { order: true } } } });
-    if (allocation.shippedAt) return;
+    const allocation = await tx.allocation.findUniqueOrThrow({
+      where: { id: allocationId },
+      include: { orderLine: { include: { order: true, quoteLine: true } } },
+    });
+    if (allocation.shippedAt) {
+      const invoiceLine = await tx.invoiceLine.findUnique({ where: { allocationId }, include: { invoice: true } });
+      return { orderCode: allocation.orderLine.order.code, qty: allocation.qty, invoiceCode: invoiceLine?.invoice.code ?? null, alreadyShipped: true };
+    }
     await lockProductStock(tx, allocation.orderLine.productId);
     const stock = await tx.stock.findFirstOrThrow({ where: { warehouseId: allocation.warehouseId, productId: allocation.orderLine.productId, variantId: allocation.orderLine.variantId } });
+    const shippedAt = new Date();
     await tx.stock.update({ where: { id: stock.id }, data: { onHand: { decrement: allocation.qty }, reserved: { decrement: allocation.qty } } });
-    await tx.allocation.update({ where: { id: allocation.id }, data: { shippedAt: new Date(), reserved: false } });
+    await tx.allocation.update({ where: { id: allocation.id }, data: { shippedAt, reserved: false } });
     const status = await updateFulfillmentStatus(tx, allocation.orderLine.orderId);
     await logEvent(tx, { entity: "ALLOCATION", entityId: allocation.id, quoteId: allocation.orderLine.order.quoteId, action: "SHIPPED", actorId: session.userId, reason: `${allocation.qty} unit${allocation.qty === 1 ? "" : "s"} shipped; fulfillment is ${status.toLowerCase()}.` });
+    const billing = await issueFulfillmentInvoice(tx, {
+      allocationId: allocation.id,
+      orderId: allocation.orderLine.orderId,
+      orderLineId: allocation.orderLineId,
+      quoteId: allocation.orderLine.order.quoteId,
+      actorId: session.userId,
+      orderedQty: allocation.orderLine.qty,
+      shipmentQty: allocation.qty,
+      description: allocation.orderLine.quoteLine.description,
+      quotedNetPaise: allocation.orderLine.quoteLine.netPaise,
+      quotedTaxPaise: allocation.orderLine.quoteLine.taxPaise,
+      issuedAt: shippedAt,
+    });
+    return { orderCode: allocation.orderLine.order.code, qty: allocation.qty, invoiceCode: billing?.invoice.code ?? null, alreadyShipped: false };
   }, { isolationLevel: "Serializable" });
-  revalidatePath(`/app/fulfillment/${orderCode}`);
+  revalidatePath(`/app/fulfillment/${result.orderCode}`);
   revalidatePath("/app/fulfillment");
-  revalidatePath(`/app/invoices`);
+  revalidatePath("/app/invoices");
+  revalidatePath(`/app/billing/${result.orderCode}`);
+  revalidatePath("/portal/invoices");
+  const notice = result.alreadyShipped
+    ? result.invoiceCode ? `Shipment already recorded · ${result.invoiceCode}` : "Shipment already recorded"
+    : result.invoiceCode ? `${result.qty} shipped · ${result.invoiceCode} issued for this shipment` : `${result.qty} shipped · already covered by an existing invoice`;
+  redirect(`/app/fulfillment/${result.orderCode}?notice=${encodeURIComponent(notice)}`);
 }

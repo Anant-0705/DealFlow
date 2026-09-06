@@ -94,7 +94,7 @@ async function main() {
 
     const allWarehouses = await db.warehouse.findMany();
     const categories = await db.category.findMany();
-    const hardware = categories.find((c) => c.name === "Hardware")!;
+    const hardware = categories.find((c) => c.name === "Product")!;
     const services = categories.find((c) => c.name === "Services")!;
     const subscription = categories.find((c) => c.name === "Subscription")!;
 
@@ -276,7 +276,7 @@ async function main() {
         approvalStatus: "PENDING",
         customerStatus: "DRAFT",
         products: [
-          { product: laptop, qty: 3, discountBps: 1800, variantId: laptop32.id }, // 18% on Hardware (ceiling 15%)
+          { product: laptop, qty: 3, discountBps: 1800, variantId: laptop32.id }, // 18% on Product (ceiling 15%)
           { product: setup, qty: 1, discountBps: 1400 }, // 14% on Services (ceiling 10%)
         ],
         activityAt: daysAgo(i % 5),

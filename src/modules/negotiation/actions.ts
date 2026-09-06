@@ -46,6 +46,7 @@ export async function postMessage(formData: FormData) {
   });
   revalidatePath(`/portal/quotes/${value.quoteCode}`);
   revalidatePath(`/app/quotations/${value.quoteCode}`);
+  revalidatePath("/portal/messages");
 }
 
 export async function proposeCounter(formData: FormData) {
@@ -170,10 +171,13 @@ export async function replyAndRevise(formData: FormData) {
       lines: { create: quote.currentRevision!.lines.map((line) => ({ productId: line.productId, variantId: line.variantId, description: line.description, qty: line.qty, unitPricePaise: line.unitPricePaise, unitCostPaise: line.unitCostPaise, lineDiscountBps: line.lineDiscountBps, effectiveDiscountBps: line.effectiveDiscountBps, allowedDiscountBps: line.allowedDiscountBps, excessBps: line.excessBps, netPaise: line.netPaise, taxPaise: line.taxPaise })) },
     } });
     const message = await tx.portalMessage.create({ data: { quoteId: quote.id, revisionId: revision.id, customerUserId: session.userId, message: value.text } });
-    await tx.quote.update({ where: { id: quote.id }, data: { currentRevisionId: revision.id, approvalStatus: "STALE", customerStatus: "NEGOTIATING", lastActivityAt: new Date() } });
+    await tx.quote.update({ where: { id: quote.id }, data: { currentRevisionId: revision.id, approvalStatus: "NONE", customerStatus: "NEGOTIATING", lastActivityAt: new Date() } });
     await logEvent(tx, { entity: "REVISION", entityId: revision.id, quoteId: quote.id, action: "REVISED", actorId: session.userId, reason: `Reply created editable v${revision.version}.`, meta: { fromVersion: quote.currentRevision!.version, toVersion: revision.version } });
     await logEvent(tx, { entity: "PORTAL_MESSAGE", entityId: message.id, quoteId: quote.id, action: "PORTAL_MESSAGE", actorId: session.userId, reason: value.text });
   });
+  revalidatePath("/app/quotations");
+  revalidatePath(`/app/quotations/${value.quoteCode}`);
+  revalidatePath("/app/approvals");
   redirect(`/app/quotations/${value.quoteCode}?notice=Revision+created`);
 }
 

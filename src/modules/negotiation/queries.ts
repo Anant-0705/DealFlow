@@ -65,7 +65,13 @@ export function getPortalQuote(customerId: number, code: string) {
 export function listPortalMessages(customerId: number) {
   return prisma.quote.findMany({
     where: { customerId, messages: { some: {} }, customerStatus: { in: ["SENT", "NEGOTIATING", "CONFIRMED"] } },
-    select: { code: true, customerStatus: true, messages: { include: { customerUser: true, line: true }, orderBy: { createdAt: "asc" } } },
+    select: {
+      code: true,
+      customerStatus: true,
+      lastActivityAt: true,
+      currentRevision: { select: { version: true, totalPaise: true } },
+      messages: { include: { customerUser: true, line: true }, orderBy: { createdAt: "asc" } },
+    },
     orderBy: { lastActivityAt: "desc" },
   });
 }

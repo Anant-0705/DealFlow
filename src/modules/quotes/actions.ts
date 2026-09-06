@@ -89,7 +89,9 @@ export async function saveDraft(raw: unknown) {
   const session = await requireRole(QUOTE_EDITOR_ROLES);
   const input = draftSchema.parse(raw);
   const evaluation = await persistDraft(input, session.userId, session.role === "ADMIN");
-  revalidatePath(`/app/quotations`);
+  const quote = await prisma.quote.findUniqueOrThrow({ where: { id: input.quoteId }, select: { code: true } });
+  revalidatePath("/app/quotations");
+  revalidatePath(`/app/quotations/${quote.code}`);
   return evaluation;
 }
 
@@ -106,11 +108,25 @@ export async function submitForApproval(raw: unknown) {
       if (evaluation.requiredLevel === "FINANCE") await tx.approvalStep.create({ data: { revisionId: quote.currentRevisionId!, level: "FINANCE", sequence: 2 } });
     }
     await tx.quoteRevision.update({ where: { id: quote.currentRevisionId! }, data: { submittedAt: new Date() } });
-    await tx.quote.update({ where: { id: quote.id }, data: { approvalStatus: evaluation.requiredLevel === "NONE" ? "APPROVED" : "PENDING", lastActivityAt: new Date() } });
+    const isAutoApproved = evaluation.requiredLevel === "NONE";
+    await tx.quote.update({
+      where: { id: quote.id },
+      data: {
+        approvalStatus: isAutoApproved ? "APPROVED" : "PENDING",
+        customerStatus: isAutoApproved ? "SENT" : undefined,
+        lastActivityAt: new Date(),
+      },
+    });
     await logEvent(tx, { entity: "REVISION", entityId: quote.currentRevisionId!, quoteId: quote.id, action: "SUBMITTED", actorId: session.userId, reason: evaluation.reasons.join(" "), meta: { reasons: evaluation.reasons } });
-    if (evaluation.requiredLevel === "NONE") await logEvent(tx, { entity: "APPROVAL", entityId: quote.currentRevisionId!, quoteId: quote.id, action: "AUTO_APPROVED", actorId: session.userId, reason: "All lines are within policy." });
+    if (isAutoApproved) {
+      await logEvent(tx, { entity: "APPROVAL", entityId: quote.currentRevisionId!, quoteId: quote.id, action: "AUTO_APPROVED", actorId: session.userId, reason: "All lines are within policy." });
+      await logEvent(tx, { entity: "QUOTE", entityId: quote.id, quoteId: quote.id, action: "SENT", actorId: session.userId, reason: `${quote.code} auto-approved within policy and sent directly to customer.` });
+    }
   });
-  revalidatePath("/app");
+  revalidatePath("/app/quotations");
+  revalidatePath(`/app/quotations/${quote.code}`);
+  revalidatePath(`/portal/quotes/${quote.code}`);
+  revalidatePath("/app/approvals");
   return { ok: true, requiredLevel: evaluation.requiredLevel };
 }
 
@@ -123,10 +139,11 @@ export async function reviseQuote(quoteId: number) {
   const next = await prisma.$transaction(async (tx) => {
     await tx.approvalStep.updateMany({ where: { revisionId: quote.currentRevision!.id }, data: { status: "STALE" } });
     const revision = await tx.quoteRevision.create({ data: { quoteId: quote.id, version: quote.currentRevision!.version + 1, orderDiscountBps: quote.currentRevision!.orderDiscountBps, subtotalPaise: quote.currentRevision!.subtotalPaise, discountPaise: quote.currentRevision!.discountPaise, taxPaise: quote.currentRevision!.taxPaise, totalPaise: quote.currentRevision!.totalPaise, costPaise: quote.currentRevision!.costPaise, marginPaise: quote.currentRevision!.marginPaise, marginBps: quote.currentRevision!.marginBps, maxLineExcessBps: quote.currentRevision!.maxLineExcessBps, blendedExcessBps: quote.currentRevision!.blendedExcessBps, excessValuePaise: quote.currentRevision!.excessValuePaise, requiredLevel: quote.currentRevision!.requiredLevel, reasons: JSON.parse(JSON.stringify(quote.currentRevision!.reasons)), createdById: session.userId, lines: { create: quote.currentRevision!.lines.map((line) => ({ productId: line.productId, variantId: line.variantId, description: line.description, qty: line.qty, unitPricePaise: line.unitPricePaise, unitCostPaise: line.unitCostPaise, lineDiscountBps: line.lineDiscountBps, effectiveDiscountBps: line.effectiveDiscountBps, allowedDiscountBps: line.allowedDiscountBps, excessBps: line.excessBps, netPaise: line.netPaise, taxPaise: line.taxPaise })) } } });
-    await tx.quote.update({ where: { id }, data: { currentRevisionId: revision.id, approvalStatus: "STALE", lastActivityAt: new Date() } });
+    await tx.quote.update({ where: { id }, data: { currentRevisionId: revision.id, approvalStatus: "NONE", lastActivityAt: new Date() } });
     await logEvent(tx, { entity: "REVISION", entityId: revision.id, quoteId: id, action: "REVISED", actorId: session.userId, reason: `Created v${revision.version} from v${quote.currentRevision!.version}`, meta: { fromVersion: quote.currentRevision!.version, toVersion: revision.version } });
     return revision;
   });
+  revalidatePath("/app/quotations");
   revalidatePath(`/app/quotations/${quote.code}`);
   return { ok: true, version: next.version };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Upload } from "lucide-react";
 import { saveProduct } from "@/modules/catalog/actions";
 import type { ProductFormState } from "@/modules/catalog/schemas";
 
@@ -28,6 +29,8 @@ const initialState: ProductFormState = { status: "idle", message: "" };
 export function ProductForm({ categories, plans, product }: { categories: Category[]; plans: Plan[]; product?: ProductValue }) {
   const [state, formAction, pending] = useActionState(saveProduct, initialState);
   const [isSubscription, setIsSubscription] = useState(product?.isSubscription ?? false);
+  const [fileName, setFileName] = useState<string>("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(product?.imageUrl ?? null);
   const error = (field: string) => state.fieldErrors?.[field]?.[0];
 
   return <form action={formAction} className="panel form-stack">
@@ -49,26 +52,61 @@ export function ProductForm({ categories, plans, product }: { categories: Catego
     </div>
     <label>Description<textarea name="description" defaultValue={product?.description} required/>{error("description") && <small className="field-error">{error("description")}</small>}</label>
     <div className="product-image-field">
-      <label>Product image</label>
-      {product?.imageUrl && (
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem", padding: "0.5rem", borderRadius: "8px", background: "var(--surface-muted, #f5ebe0)", border: "1px solid var(--line, #e2d4c7)" }}>
+      <span style={{ display: "block", color: "#536159", fontSize: "11px", fontWeight: 700, marginBottom: "6px" }}>Product image</span>
+      {previewUrl && (
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.75rem", padding: "0.5rem", borderRadius: "8px", background: "var(--surface-muted, #f5ebe0)", border: "1px solid var(--line, #e2d4c7)" }}>
           <img
-            src={product.imageUrl}
-            alt={product.name}
+            src={previewUrl}
+            alt={product?.name ?? "Product preview"}
             style={{ width: "56px", height: "56px", objectFit: "cover", borderRadius: "6px", border: "1px solid var(--line, #e2d4c7)" }}
           />
           <label className="check" style={{ margin: 0, fontSize: "0.875rem", cursor: "pointer" }}>
-            <input type="checkbox" name="removeImage" />
+            <input
+              type="checkbox"
+              name="removeImage"
+              onChange={(e) => {
+                if (e.target.checked) setPreviewUrl(null);
+                else setPreviewUrl(product?.imageUrl ?? null);
+              }}
+            />
             Remove current image
           </label>
         </div>
       )}
-      <input type="file" name="image" accept="image/png,image/jpeg,image/webp" />
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", marginBottom: "6px" }}>
+        <input
+          type="file"
+          id="product-image-upload"
+          name="image"
+          accept="image/png,image/jpeg,image/webp"
+          style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0,0,0,0)", border: 0 }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              setFileName(file.name);
+              setPreviewUrl(URL.createObjectURL(file));
+            } else {
+              setFileName("");
+            }
+          }}
+        />
+        <label
+          htmlFor="product-image-upload"
+          className="button secondary"
+          style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "7px", minHeight: "36px", margin: 0 }}
+        >
+          <Upload size={14} aria-hidden="true" />
+          <span>Choose image file</span>
+        </label>
+        <span style={{ fontSize: "12px", color: fileName ? "#302925" : "var(--muted)", fontWeight: fileName ? 600 : 400, maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {fileName || "No file chosen"}
+        </span>
+      </div>
       {error("image") ? <small className="field-error">{error("image")}</small> : <small className="form-help">Optional PNG, JPEG, or WebP product image stored in Cloudflare R2.</small>}
     </div>
     <label className="check"><input type="checkbox" name="isSubscription" defaultChecked={isSubscription} onChange={(event) => setIsSubscription(event.target.checked)}/>Subscription product</label>
     <label>Billing plan<select name="planId" defaultValue={product?.planId ?? ""} disabled={!isSubscription} required={isSubscription} aria-invalid={Boolean(error("planId"))}><option value="">Choose a billing plan</option>{plans.map((plan) => <option value={plan.id} key={plan.id}>{plan.name}</option>)}</select><small className={error("planId") ? "field-error" : "form-help"}>{error("planId") ?? (isSubscription ? "Required because this product has recurring billing." : "Enable Subscription product only for recurring items.")}</small></label>
-    <div className="form-row"><label className="check"><input type="checkbox" name="isPromoted" defaultChecked={product?.isPromoted}/>Promoted</label><label className="check"><input type="checkbox" name="active" defaultChecked={product?.active ?? true}/>Active</label></div>
+    <div className="form-row"><label className="check"><input type="checkbox" name="isPromoted" defaultChecked={product?.isPromoted}/>Promoted</label><label className="check"><input type="checkbox" name="active" defaultChecked={product?.active ?? true}/>Active (available in quotations)</label></div>
     <button className="button primary" disabled={pending}>{pending ? "Saving…" : product ? "Save product" : "Create product"}</button>
   </form>;
 }

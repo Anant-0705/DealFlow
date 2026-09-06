@@ -15,7 +15,7 @@ export function getQuoteDetail(code: string) {
   return prisma.quote.findUnique({ where: { code }, include: {
     customer: true, owner: true,
     currentRevision: { include: { lines: { include: { product: { include: { category: true, variants: true, plan: true } }, variant: true } }, approvalSteps: { include: { actor: true }, orderBy: { sequence: "asc" } } } },
-    revisions: { include: { lines: { include: { product: true, variant: true } }, approvalSteps: { include: { actor: true }, orderBy: { sequence: "asc" } } }, orderBy: { version: "desc" } },
+    revisions: { include: { lines: { include: { product: { include: { category: true, variants: true, plan: true } }, variant: true } }, approvalSteps: { include: { actor: true }, orderBy: { sequence: "asc" } }, createdBy: true }, orderBy: { version: "desc" } },
     auditEvents: { include: { actor: true }, orderBy: { at: "desc" } },
     messages: { include: { customerUser: true, line: true }, orderBy: { createdAt: "asc" } },
     orders: { orderBy: { confirmedAt: "desc" } },

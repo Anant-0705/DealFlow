@@ -9,11 +9,7 @@ import { dismissOffer, reviseQuote, saveDraft, submitForApproval } from "@/modul
 import { confirmOnBehalf, sendToCustomer } from "@/modules/negotiation/actions";
 import { LineRow, type BuilderLine } from "./LineRow";
 import { TotalsPanel } from "./TotalsPanel";
-import { DecisionPanel } from "./DecisionPanel";
 import { OfferPanel } from "./UpsellPanel";
-import { ImpactPreview } from "./ImpactPreview";
-import { computeImpact } from "@/modules/preview/impact";
-import { calendarPeriod, prorate } from "@/modules/billing/prorate";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,7 +21,7 @@ type Product = { id: number; name: string; categoryId: number; unit: string; tax
 type Policy = { tierCeilingBronzeBps: number; tierCeilingSilverBps: number; tierCeilingGoldBps: number; financeLineExcessBps: number; financeBlendedExcessBps: number; financeExcessValuePaise: number; upsellMarginFloorBps: number };
 type Pairing = { productId: number; kind: OfferKind; weight: number; coPurchaseCount?: number; suggestedProduct: Product };
 
-export function QuoteBuilder({ quote, products, policy, pairings, stock, warehouses, previewDate, canEdit }: { quote: { id: number; code: string; approvalStatus: string; customerStatus: string; customer: { name: string; tier: "BRONZE" | "SILVER" | "GOLD" }; currentRevision: { id: number; version: number; orderDiscountBps: number; submittedAt: string | Date | null; dismissedUpsellIds: unknown; totalPaise: number; marginPaise: number; marginBps: number; requiredLevel: string; lines: Array<{ productId: number; variantId: number | null; qty: number; unitPricePaise: number; lineDiscountBps: number }> } }; products: Product[]; policy: Policy; pairings: Pairing[]; stock: Array<{ warehouseId: number; productId: number; variantId: number | null; onHand: number; reserved: number }>; warehouses: Array<{ id: number; name: string; shippingCostWeightPaise: number }>; previewDate: string; canEdit: boolean }) {
+export function QuoteBuilder({ quote, products, policy, pairings, stock, warehouses, previewDate, canEdit, isHistorical = false }: { quote: { id: number; code: string; approvalStatus: string; customerStatus: string; customer: { name: string; tier: "BRONZE" | "SILVER" | "GOLD" }; currentRevision: { id: number; version: number; orderDiscountBps: number; submittedAt: string | Date | null; dismissedUpsellIds: unknown; totalPaise: number; marginPaise: number; marginBps: number; requiredLevel: string; lines: Array<{ productId: number; variantId: number | null; qty: number; unitPricePaise: number; lineDiscountBps: number }> } }; products: Product[]; policy: Policy; pairings: Pairing[]; stock: Array<{ warehouseId: number; productId: number; variantId: number | null; onHand: number; reserved: number }>; warehouses: Array<{ id: number; name: string; shippingCostWeightPaise: number }>; previewDate: string; canEdit: boolean; isHistorical?: boolean }) {
   const router = useRouter(); const [pending, startTransition] = useTransition(); const revision = quote.currentRevision;
   const tierBps = quote.customer.tier === "BRONZE" ? policy.tierCeilingBronzeBps : quote.customer.tier === "SILVER" ? policy.tierCeilingSilverBps : policy.tierCeilingGoldBps;
   const productMap = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
@@ -48,7 +44,7 @@ export function QuoteBuilder({ quote, products, policy, pairings, stock, warehou
   const [notice, setNotice] = useState("");
   const [dismissed, setDismissed] = useState(parseDismissed(revision.dismissedUpsellIds));
   const [submitting, setSubmitting] = useState(false); const [submittedLevel, setSubmittedLevel] = useState<"NONE" | "MANAGER" | "FINANCE" | null>(null);
-  const editable = canEdit && submittedLevel === null && ["NONE", "STALE"].includes(quote.approvalStatus) && !revision.submittedAt;
+  const editable = !isHistorical && canEdit && submittedLevel === null && ["NONE", "STALE"].includes(quote.approvalStatus) && !revision.submittedAt && quote.customerStatus !== "CONFIRMED";
   const makeEngineLines = (source: BuilderLine[]) => source.map((line) => { const product = productMap.get(line.productId)!; const variant = product.variants.find((item) => item.id === line.variantId); return { key: `${product.id}:${variant?.id ?? "base"}`, description: product.name, categoryId: product.categoryId, categoryName: product.category.name, categoryCeilingBps: product.category.discountCeilingBps, qty: line.qty, unitPricePaise: product.listPricePaise + (variant?.extraPricePaise ?? 0), unitCostPaise: product.costPaise, taxBps: product.taxBps, lineDiscountBps: line.lineDiscountBps }; });
   const engineLines = makeEngineLines(lines);
   const evaluation = evaluateRevision({ customerTier: quote.customer.tier, policy, orderDiscountBps, lines: engineLines });
@@ -82,11 +78,6 @@ export function QuoteBuilder({ quote, products, policy, pairings, stock, warehou
     const next = evaluateRevision({ customerTier: quote.customer.tier, policy, orderDiscountBps, lines: makeEngineLines(nextLines) });
     return { ...item, marginDeltaPaise: next.marginPaise - evaluation.marginPaise, resultingMarginBps: next.marginBps };
   });
-  const allocationRequests = (source: BuilderLine[]) => source.map((line) => { const product = productMap.get(line.productId)!; const variant = product.variants.find((item) => item.id === line.variantId); return { productId: product.id, variantId: variant?.id ?? null, description: product.name, variantLabel: variant?.attributeValue ?? null, qty: line.qty, requiresStock: !product.isSubscription && product.category.name.toLowerCase() !== "services" }; });
-  const firstBill = (source: BuilderLine[], calculated: typeof evaluation) => source.reduce((sum, line, index) => { const product = productMap.get(line.productId)!; if (!product.isSubscription || !product.plan) return sum; const period = calendarPeriod(previewDate, product.plan.interval); const netUnitPaise = Math.round(calculated.lines[index].netPaise / Math.max(1, line.qty)); const first = prorate({ unitAmountPaise: netUnitPaise, qtyDelta: line.qty, effectiveDate: previewDate, periodStart: period.periodStart, periodEnd: period.periodEnd, prorateChanges: product.plan.prorateChanges }); return sum + first.amountPaise + Math.round(first.amountPaise * product.taxBps / 10_000); }, 0);
-  const currentEngineLines = makeEngineLines(initialLines);
-  const currentEvaluation = evaluateRevision({ customerTier: quote.customer.tier, policy, orderDiscountBps: revision.orderDiscountBps, lines: currentEngineLines });
-  const impact = computeImpact({ current: { customerTier: quote.customer.tier, policy, orderDiscountBps: revision.orderDiscountBps, lines: currentEngineLines }, proposed: { customerTier: quote.customer.tier, policy, orderDiscountBps, lines: engineLines }, currentAllocationRequests: allocationRequests(revision.lines), proposedAllocationRequests: allocationRequests(lines), stock, warehouses, currentFirstBillPaise: firstBill(initialLines, currentEvaluation), proposedFirstBillPaise: firstBill(lines, evaluation) });
   const payload = (nextLines = lines) => ({ quoteId: quote.id, orderDiscountBps, lines: nextLines });
   const addProduct = (product: Product) => {
     const defaultVariantId = product.variants[0]?.id ?? null;
@@ -116,19 +107,31 @@ export function QuoteBuilder({ quote, products, policy, pairings, stock, warehou
       router.refresh();
     });
   };
-  const save = () => startTransition(async () => { await saveDraft(payload()); setNotice("Draft saved to Postgres."); router.refresh(); });
+  const save = () => startTransition(async () => { await saveDraft(payload()); router.refresh(); });
   const submit = async () => {
     setSubmitting(true);
     try {
       const result = await submitForApproval(payload());
       setSubmittedLevel(result.requiredLevel);
-      setNotice(result.requiredLevel === "NONE" ? "Quote auto-approved. Draft controls are now locked." : "Quote submitted to the approval inbox. Draft controls are now locked.");
+      setNotice(result.requiredLevel === "NONE" ? "Quote auto-approved and sent directly to the customer. Draft controls are now locked." : "Quote submitted to the approval inbox. Draft controls are now locked.");
       router.refresh();
     } finally {
       setSubmitting(false);
     }
   };
-  const revise = () => startTransition(async () => { await reviseQuote(quote.id); router.refresh(); });
+  const revise = () => startTransition(async () => {
+    setSubmitting(true);
+    try {
+      setSubmittedLevel(null);
+      setNotice("");
+      await reviseQuote(quote.id);
+      router.refresh();
+    } catch (err: unknown) {
+      setNotice(err instanceof Error ? err.message : "Failed to create revision.");
+    } finally {
+      setSubmitting(false);
+    }
+  });
   const dismiss = (item: OfferCard) => {
     setDismissed((value) => item.mode === "UPGRADE" && item.variantId
       ? { ...value, upgrades: [...value.upgrades, item.variantId] }
@@ -138,8 +141,30 @@ export function QuoteBuilder({ quote, products, policy, pairings, stock, warehou
     startTransition(async () => { await dismissOffer(revision.id, { kind: item.kind, mode: item.mode, productId: item.productId, variantId: item.variantId }); router.refresh(); });
   };
   const displayedStatus = submittedLevel === "NONE" ? "APPROVED" : submittedLevel ? "PENDING" : quote.approvalStatus;
-  const statusLabel = editable ? "EDITABLE DRAFT" : displayedStatus === "PENDING" ? "PENDING APPROVAL" : displayedStatus;
-  const statusVariant = editable ? "outline" : displayedStatus === "REJECTED" ? "destructive" : displayedStatus === "APPROVED" ? "default" : "secondary";
+  const statusLabel = isHistorical
+    ? `v${revision.version} · HISTORICAL SNAPSHOT`
+    : editable
+      ? "EDITABLE DRAFT"
+      : quote.customerStatus === "CONFIRMED"
+        ? "CONFIRMED"
+        : displayedStatus === "PENDING"
+          ? "PENDING APPROVAL"
+          : displayedStatus === "APPROVED"
+            ? "APPROVED"
+            : displayedStatus === "REJECTED"
+              ? "REJECTED"
+              : displayedStatus === "STALE"
+                ? "SUPERSEDED"
+                : "DRAFT";
+  const statusVariant = isHistorical
+    ? "outline"
+    : editable
+      ? "outline"
+      : displayedStatus === "REJECTED"
+        ? "destructive"
+        : displayedStatus === "APPROVED" || quote.customerStatus === "CONFIRMED"
+          ? "default"
+          : "secondary";
   const offerDisabled = !editable || pending || submitting;
   return (
     <div className="quote-builder">
@@ -147,11 +172,11 @@ export function QuoteBuilder({ quote, products, policy, pairings, stock, warehou
         <div>
           <Link href="/app/quotations" className="back-link"><ChevronLeft aria-hidden="true"/>Quotations</Link>
           <div className="eyebrow">{quote.customer.name} · {quote.customer.tier} customer</div>
-          <h1>{quote.code} <span>v{revision.version}</span></h1>
+          <h1>{quote.code} <span>v{revision.version}{isHistorical ? " (Archived)" : ""}</span></h1>
         </div>
         <div className="header-actions quote-status-actions">
           <Badge variant={statusVariant}>{statusLabel}</Badge>
-          {!editable && canEdit ? <Button type="button" disabled={pending} onClick={revise}><ShieldCheck data-icon="inline-start"/>Revise as v{revision.version + 1}</Button> : null}
+          {!editable && canEdit && !isHistorical && quote.customerStatus !== "CONFIRMED" ? <Button type="button" disabled={pending || submitting} onClick={revise}><ShieldCheck data-icon="inline-start"/>Revise as v{revision.version + 1}</Button> : null}
         </div>
       </div>
       {notice && <Alert><AlertDescription>{notice}</AlertDescription></Alert>}
@@ -167,9 +192,9 @@ export function QuoteBuilder({ quote, products, policy, pairings, stock, warehou
                     <Button type="button" variant="outline" disabled={pending || submitting} onClick={save}><Save data-icon="inline-start"/>Save draft</Button>
                     <Button type="button" disabled={pending || submitting || !lines.length} onClick={submit}><Send data-icon="inline-start"/>{submitting ? "Submitting…" : evaluation.requiredLevel === "NONE" ? "Confirm, no approval needed" : "Submit for approval"}</Button>
                   </>}
-                  {quote.approvalStatus === "APPROVED" && quote.customerStatus === "SENT" && <Badge variant="secondary"><Check aria-hidden="true"/>Sent to customer</Badge>}
-                  {quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && quote.customerStatus !== "SENT" && <form action={sendToCustomer}><input type="hidden" name="quoteCode" value={quote.code}/><SubmitButton pendingLabel="Sending…"><Send data-icon="inline-start"/>Send to customer</SubmitButton></form>}
-                  {quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && <form action={confirmOnBehalf}><input type="hidden" name="quoteCode" value={quote.code}/><input type="hidden" name="revisionId" value={quote.currentRevision.id}/><Button type="submit" variant="outline"><Check data-icon="inline-start"/>Confirm on behalf</Button></form>}
+                  {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus === "SENT" && <Badge variant="secondary"><Check aria-hidden="true"/>Sent to customer</Badge>}
+                  {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && quote.customerStatus !== "SENT" && <form action={sendToCustomer}><input type="hidden" name="quoteCode" value={quote.code}/><SubmitButton pendingLabel="Sending…"><Send data-icon="inline-start"/>Send to customer</SubmitButton></form>}
+                  {!isHistorical && quote.approvalStatus === "APPROVED" && quote.customerStatus !== "CONFIRMED" && <form action={confirmOnBehalf}><input type="hidden" name="quoteCode" value={quote.code}/><input type="hidden" name="revisionId" value={quote.currentRevision.id}/><Button type="submit" variant="outline"><Check data-icon="inline-start"/>Confirm on behalf</Button></form>}
                 </div>
                 <label className="order-discount"><span>Order discount</span><div><input disabled={!editable} type="number" min="0" max="100" step="0.1" value={orderDiscountBps / 100} onChange={(event) => setOrderDiscountBps(Math.round(Number(event.target.value) * 100))}/><b>%</b></div></label>
               </div>
@@ -225,9 +250,7 @@ export function QuoteBuilder({ quote, products, policy, pairings, stock, warehou
           </div>
         </aside>
         <section className="builder-insights-grid" aria-label="Quotation commercial insights">
-          <TotalsPanel evaluation={evaluation} listSubtotalPaise={listSubtotal} lineDiscountPaise={lineDiscountPaise} orderDiscountPaise={orderDiscountPaise}/>
-          <DecisionPanel evaluation={evaluation}/>
-          {editable && <ImpactPreview current={impact.current} proposed={impact.proposed}/>}
+          <TotalsPanel customerName={quote.customer.name} customerTier={quote.customer.tier} evaluation={evaluation} listSubtotalPaise={listSubtotal} lineDiscountPaise={lineDiscountPaise} orderDiscountPaise={orderDiscountPaise}/>
         </section>
       </div>
     </div>

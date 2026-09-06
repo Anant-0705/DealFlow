@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Building2 } from "lucide-react";
+import { Building2, Upload } from "lucide-react";
 import { saveCompanyProfile } from "@/modules/company/actions";
 import { getCompanyProfile } from "@/modules/company/queries";
 import { companyIdentityGaps } from "@/modules/company/readiness";
@@ -28,9 +28,28 @@ export default async function CompanySettingsPage({ searchParams }: { searchPara
         <div className="logo-row">
           <Image className="logo-preview" src={company.logoDataUrl || "/branding/logo.png"} alt="Company logo preview" width={96} height={96} unoptimized />
           <div className="form-stack">
-            <label>Logo<input name="logo" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
+            <div>
+              <span style={{ display: "block", color: "#536159", fontSize: "11px", fontWeight: 700, marginBottom: "6px" }}>Company logo</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                <input
+                  type="file"
+                  id="company-logo-upload"
+                  name="logo"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0,0,0,0)", border: 0 }}
+                />
+                <label
+                  htmlFor="company-logo-upload"
+                  className="button secondary"
+                  style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "7px", minHeight: "36px", margin: 0 }}
+                >
+                  <Upload size={14} aria-hidden="true" />
+                  <span>Choose logo file</span>
+                </label>
+              </div>
+            </div>
             <label className="check"><input name="removeLogo" type="checkbox" />Remove uploaded logo and use the default mark</label>
-            <small className="muted">PNG, JPEG, WebP, or SVG up to 400 KB. The logo prints on quotation and invoice PDFs.</small>
+            <small className="muted">PNG, JPEG, WebP, or SVG up to 2 MB. The logo prints on quotation and invoice PDFs.</small>
           </div>
         </div>
         <h3>Identity</h3>

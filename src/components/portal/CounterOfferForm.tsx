@@ -12,7 +12,7 @@ import { formatMoney, formatPercent } from "@/lib/money";
 type SafeLine = { id: number; description: string; qty: number; unitPricePaise: number; taxBps: number; lineDiscountBps: number };
 type DiscountValue = number | "";
 
-export function CounterOfferForm({ quoteCode, currentTotalPaise, orderDiscountBps, lines, disabled }: { quoteCode: string; currentTotalPaise: number; orderDiscountBps: number; lines: SafeLine[]; disabled: boolean }) {
+export function CounterOfferForm({ quoteCode, currentTotalPaise, orderDiscountBps, lines, disabled, waitingForReply }: { quoteCode: string; currentTotalPaise: number; orderDiscountBps: number; lines: SafeLine[]; disabled: boolean; waitingForReply: boolean }) {
   const [selectedLineIds, setSelectedLineIds] = useState<number[]>([]);
   const [discounts, setDiscounts] = useState<Record<number, DiscountValue>>(() => lines.reduce<Record<number, DiscountValue>>((values, line) => {
     values[line.id] = line.lineDiscountBps / 100;
@@ -36,6 +36,11 @@ export function CounterOfferForm({ quoteCode, currentTotalPaise, orderDiscountBp
   };
 
   const toggleAll = () => setSelectedLineIds(allSelected ? [] : lines.map((line) => line.id));
+
+  if (waitingForReply) return <Card className="counter-locked">
+    <CardHeader><CardTitle>Discount request sent</CardTitle><CardDescription>Your proposed discounts were sent to the sales team.</CardDescription></CardHeader>
+    <CardContent><p>Waiting for their reply. You can submit another discount request after they respond.</p></CardContent>
+  </Card>;
 
   return <form action={proposeCounter}>
     <Card>

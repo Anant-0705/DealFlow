@@ -82,6 +82,17 @@ export async function proposeCounter(formData: FormData) {
       include: { customer: true, currentRevision: { include: { lines: { include: { product: { include: { category: true } } } } } } },
     });
     if (!quote?.currentRevision) throw new Error("Quotation not found.");
+    if (quote.currentRevision.createdVia === "PORTAL") {
+      const internalReply = await tx.portalMessage.findFirst({
+        where: {
+          quoteId: quote.id,
+          revisionId: quote.currentRevision.id,
+          customerUser: { role: { in: ["REP", "MANAGER", "ADMIN"] } },
+        },
+        select: { id: true },
+      });
+      if (!internalReply) return { kind: "waiting" as const };
+    }
     const quoteLineIds = new Set(quote.currentRevision.lines.map((line) => line.id));
     if (value.requests.some((request) => !quoteLineIds.has(request.lineId))) throw new Error("Quotation line not found.");
     const requestedByLineId = new Map(value.requests.map((request) => [request.lineId, request.proposedDiscountBps]));
@@ -157,12 +168,15 @@ export async function proposeCounter(formData: FormData) {
     await logEvent(tx, { entity: "REVISION", entityId: revision.id, quoteId: quote.id, action: "REVISED", actorId: session.userId, reason: `Customer created v${revision.version} from v${quote.currentRevision.version}.`, meta: { fromVersion: quote.currentRevision.version, toVersion: revision.version, via: "PORTAL" } });
     await logEvent(tx, { entity: "PORTAL_MESSAGE", entityId: message.id, quoteId: quote.id, action: "COUNTER_PROPOSED", actorId: session.userId, reason: messageText, meta: { requests: value.requests } });
     await logEvent(tx, { entity: "REVISION", entityId: revision.id, quoteId: quote.id, action: evaluation.requiredLevel === "NONE" ? "AUTO_APPROVED" : "SUBMITTED", actorId: session.userId, reason: evaluation.reasons.join(" ") || "Counter-offer remains within policy.", meta: { reasons: evaluation.reasons } });
-    return revision.version;
+    return { kind: "created" as const, version: revision.version };
   }, { isolationLevel: "Serializable" });
+  if (result.kind === "waiting") {
+    redirect(`/portal/quotes/${value.quoteCode}?notice=${encodeURIComponent("Your previous discount request is waiting for a sales response.")}`);
+  }
   revalidatePath(`/portal/quotes/${value.quoteCode}`);
   revalidatePath("/portal");
   revalidatePath("/app/approvals");
-  redirect(`/portal/quotes/${value.quoteCode}?notice=Counter-offer+submitted+as+v${result}`);
+  redirect(`/portal/quotes/${value.quoteCode}?notice=Counter-offer+submitted+as+v${result.version}`);
 }
 
 export async function acceptCounter(formData: FormData) {
@@ -210,6 +224,8 @@ export async function replyAndRevise(formData: FormData) {
   });
   revalidatePath("/app/quotations");
   revalidatePath(`/app/quotations/${value.quoteCode}`);
+  revalidatePath(`/portal/quotes/${value.quoteCode}`);
+  revalidatePath("/portal");
   revalidatePath("/app/approvals");
   redirect(`/app/quotations/${value.quoteCode}?notice=Revision+created`);
 }

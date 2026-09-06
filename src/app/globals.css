@@ -410,6 +410,8 @@ label.check input { width:15px; min-height:15px; margin:0; }
 .counter-line-discount { display:grid; gap:4px; min-width:0; }
 .counter-line-discount > span { color:var(--muted); font-size:10px; font-weight:750; }
 .counter-line-discount input { text-align:right; }
+.counter-locked { border-color:#d8c4b3; background:linear-gradient(145deg,#f7eee6,#fff); }
+.counter-locked p { margin:0; color:var(--muted); line-height:1.6; }
 .message-thread { display:flex; flex-direction:column; gap:10px; margin:14px 0; }
 .message-thread article { width:88%; padding:11px 13px; border-radius:10px; background:#f1f5f2; }
 .message-thread article.customer { margin-left:auto; background:var(--green-soft); }

@@ -27,6 +27,7 @@ export function getPortalQuote(customerId: number, code: string) {
       currentRevision: { select: {
         id: true,
         version: true,
+        createdVia: true,
         orderDiscountBps: true,
         subtotalPaise: true,
         discountPaise: true,
@@ -53,6 +54,7 @@ export function getPortalQuote(customerId: number, code: string) {
       }, orderBy: { version: "desc" }, take: 2 },
       messages: { select: {
         id: true,
+        revisionId: true,
         message: true,
         proposedDiscountBps: true,
         createdAt: true,

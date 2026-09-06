@@ -29,6 +29,8 @@ export default async function PortalQuotePage({
   if (!quote?.currentRevision) notFound();
   const [documents, trust] = await Promise.all([getDocumentParties(session.customerId!), getQuoteTrustState(quote.id)]);
   const safeLines = quote.currentRevision.lines.map((line) => ({ id: line.id, description: line.description, qty: line.qty, unitPricePaise: line.unitPricePaise, taxBps: line.product.taxBps, lineDiscountBps: line.lineDiscountBps }));
+  const waitingForReply = quote.currentRevision.createdVia === "PORTAL"
+    && !quote.messages.some((message) => message.revisionId === quote.currentRevision!.id && message.customerUser.role !== "CUSTOMER");
 
   return <div className="portal-page quote-view">
     <Link className="back-link" href="/portal">← My quotations</Link>
@@ -46,7 +48,7 @@ export default async function PortalQuotePage({
     </Card>
 
     <div className="portal-action-grid">
-      <CounterOfferForm quoteCode={quote.code} currentTotalPaise={quote.currentRevision.totalPaise} orderDiscountBps={quote.currentRevision.orderDiscountBps} lines={safeLines} disabled={quote.customerStatus === "CONFIRMED" || quote.approvalStatus === "PENDING"}/>
+      <CounterOfferForm quoteCode={quote.code} currentTotalPaise={quote.currentRevision.totalPaise} orderDiscountBps={quote.currentRevision.orderDiscountBps} lines={safeLines} disabled={quote.customerStatus === "CONFIRMED" || quote.approvalStatus === "PENDING"} waitingForReply={waitingForReply}/>
       <Card><CardHeader><CardTitle>Conversation</CardTitle><CardDescription>Messages shared with your sales team.</CardDescription></CardHeader><CardContent><MessageThread messages={quote.messages}/><form action={postMessage} className="message-compose"><input type="hidden" name="quoteCode" value={quote.code}/><Textarea name="text" required placeholder="Write a message to your sales team"/><Button type="submit" variant="outline" size="sm">Send message</Button></form></CardContent></Card>
     </div>
     <ConfirmButton quoteCode={quote.code} revisionId={quote.currentRevision.id} approvalStatus={quote.approvalStatus} customerStatus={quote.customerStatus} onBehalf={trust.onBehalf} actorName={trust.actorName} channel={trust.channel} note={trust.note} canReport={trust.canReport} alreadyReported={trust.alreadyReported} disputeOpen={trust.disputeOpen}/>

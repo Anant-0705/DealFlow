@@ -41,7 +41,7 @@ Customer self-registration is closed. Administrators and managers create custome
 
 ## Demo flows
 
-1. Clean flow: Ravi creates an Acme quote, confirms its policy route, sends it, the customer confirms, Operations accepts the stock split, and the customer or Finance pays the invoice through Cashfree sandbox checkout.
+1. Clean flow: Ravi creates an Acme quote, confirms its policy route, sends it, the customer confirms, Operations accepts the stock split and marks an allocation shipped, and the customer or Finance pays that shipment invoice through Cashfree sandbox checkout.
 2. Messy flow: a high-discount quote goes through Manager and Finance, the customer counters, a revised version is approved, a backorder slips, and billing creates proration and credit records.
 
 The exact timed clicks and reset instructions are in [docs/demo-script.md](docs/demo-script.md).
@@ -54,7 +54,7 @@ npm run lint
 npm run build
 ```
 
-The test suite covers authentication helpers, pricing and approval routing, stock allocation, billing dates, proration, Cashfree signatures and payment access, document readiness, and all three deal-health rules.
+The test suite covers authentication helpers, pricing and approval routing, stock allocation, shipment invoice amounts, billing dates, proration, Cashfree signatures and payment access, document readiness, and all three deal-health rules.
 
 ## Documentation
 

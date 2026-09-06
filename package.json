@@ -13,6 +13,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/run-seed.ts",
+    "db:seed:full": "tsx scripts/seed-100.ts",
     "db:reset": "prisma migrate reset --force && npm run db:seed",
     "verify:phase3": "tsx scripts/verify-phase3-seed.ts",
     "setup": "test -f .env || cp .env.example .env; docker compose up -d postgres && npm install && npm run db:reset",

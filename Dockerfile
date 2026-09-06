@@ -32,9 +32,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/src ./src
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
-RUN npm install prisma@7.10.0 dotenv
+RUN npm install prisma@7.10.0 dotenv tsx
 
 USER nextjs
 EXPOSE 3000

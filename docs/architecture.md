@@ -28,8 +28,8 @@ The three pure engines—pricing, allocation, and proration—accept plain input
 - Configuration: `Category`, `Product`, `ProductVariant`, `PriceList`, `DiscountPolicy`, `Warehouse`, `Stock`, `StockReceipt`, `SubscriptionPlan`, `ProductPairing`.
 - Deal: `Quote` → many `QuoteRevision` → many `QuoteLine`; one revision is the current immutable snapshot.
 - Governance: `QuoteRevision` → many `ApprovalStep`; `AuditEvent` records every meaningful action; `PortalMessage` is scoped by customer and quote.
-- Execution: `Order` → many `OrderLine` → many `Allocation` and `Backorder` records.
-- Billing: `Order` → `Subscription` → `SubscriptionChange`; `Invoice` → many `InvoiceLine`, `Payment`, and `CreditNote` records.
+- Execution: `Order` → many `OrderLine` → many `Allocation` and `Backorder` records. A shipped allocation links to the exact fulfillment `InvoiceLine` it generated.
+- Billing: `Order` → many shipment, one-time, recurring, or proration `Invoice` records; `Invoice` → many `InvoiceLine`, `Payment`, and `CreditNote` records. `Order` → `Subscription` → `SubscriptionChange` remains the recurring path.
 
 ## Policies and statuses
 

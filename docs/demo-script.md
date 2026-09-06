@@ -11,8 +11,8 @@ Reset Demo Data from Settings → System. Prepare four sessions: Ravi, Manager, 
 3. Add Docking Station from the upsell suggestion. Submit the quote and show its approval result.
 4. Open the quotation and click Send to customer; the button changes through “Sending…” to “Sent to customer”.
 5. Acme customer: My Quotations → open the quote → Confirm quotation.
-6. Operations: Fulfillment → order → Accept Suggested Split.
-7. Acme customer: Invoices → open the unpaid invoice → Pay with Cashfree. Complete a sandbox payment and show the Paid status and quotation Timeline. Finance can still record bank transfers manually.
+6. Operations: Fulfillment → order → Accept Suggested Split → Mark shipped & invoice. Show that the invoice quantity matches only the shipped allocation.
+7. Acme customer: Invoices → open that shipment invoice → Pay with Cashfree. Complete a sandbox payment and show the Paid status and quotation Timeline. Finance can still record bank transfers manually.
 
 ## Flow B — governed negotiation and execution (1:40–4:10)
 
@@ -22,8 +22,8 @@ Reset Demo Data from Settings → System. Prepare four sessions: Ravi, Manager, 
 4. Acme customer: request 20% on the laptop line with a comment. Show the customer-safe savings preview.
 5. Manager: compare the new revision with the previous revision and return it with a plain-language reason.
 6. Ravi: revise, settle the discount, submit, and send. Acme confirms the current revision.
-7. Operations: accept the split/backorder and record the expected stock receipt. Open Deal Health to show the delivery-slippage explanation.
-8. Billing: modify a subscription quantity, show proration, then record a payment.
+7. Operations: accept the split/backorder and mark the available allocation shipped. Show the first invoice contains only that quantity. Record the expected stock receipt, consolidate the backorder, and mark the new allocation shipped to show the separate remainder invoice. Open Deal Health to show the delivery-slippage explanation.
+8. Billing: open both shipment invoices under the same customer order, modify a subscription quantity, show proration, then record a payment.
 
 ## Phase 3 proof (4:10–4:45)
 

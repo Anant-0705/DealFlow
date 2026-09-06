@@ -7,13 +7,11 @@ import { LineCommentBox } from "@/components/portal/LineCommentBox";
 import { CounterOfferForm } from "@/components/portal/CounterOfferForm";
 import { ConfirmButton } from "@/components/portal/ConfirmButton";
 import { MessageThread } from "@/components/portal/MessageThread";
-import { RevisionDiff } from "@/components/quotes/RevisionDiff";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { diffRevisions } from "@/modules/negotiation/diff";
 import { getPortalQuote } from "@/modules/negotiation/queries";
 import { postMessage } from "@/modules/negotiation/actions";
 import { getDocumentParties } from "@/modules/company/queries";
@@ -30,8 +28,6 @@ export default async function PortalQuotePage({
   const quote = await getPortalQuote(session.customerId!, code);
   if (!quote?.currentRevision) notFound();
   const documents = await getDocumentParties(session.customerId!);
-  const [current, previous] = quote.revisions;
-  const diff = current && previous ? diffRevisions(previous, current) : null;
   const safeLines = quote.currentRevision.lines.map((line) => ({ id: line.id, description: line.description, qty: line.qty, unitPricePaise: line.unitPricePaise, taxBps: line.product.taxBps, lineDiscountBps: line.lineDiscountBps }));
 
   return <div className="portal-page quote-view">
@@ -40,7 +36,6 @@ export default async function PortalQuotePage({
     {query.error && <Alert variant="destructive"><AlertDescription>{query.error}</AlertDescription></Alert>}
     <div className="page-header"><div><div className="eyebrow">{quote.customer.name} · Revision v{quote.currentRevision.version}</div><h1>{quote.code}</h1><p>Updated {new Date(quote.lastActivityAt).toLocaleDateString("en-IN")}</p></div><StatusBadge status={quote.customerStatus}/></div>
     <DocumentReadyAlert gaps={documents.gaps} customerName={quote.customer.name} customerHref="/portal/profile" companyHref={null} action="confirm this quotation" />
-    {diff && <RevisionDiff diff={diff} customer/>}
 
     <Card>
       <CardHeader><CardTitle>Quotation lines</CardTitle><CardDescription>Current commercial terms and line-level change requests.</CardDescription></CardHeader>
